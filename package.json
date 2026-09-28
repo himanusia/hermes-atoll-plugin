@@ -1,0 +1,16 @@
+{
+  "name": "hermes-atoll-extension",
+  "version": "1.0.0",
+  "description": "Local Hermes session and turn monitor extension for Atoll on macOS",
+  "private": true,
+  "scripts": {
+    "test": "node tools/test-rendering.js && node tools/test-transitions.js && node tools/test-host-lifecycle.js && node tools/test-state-watch.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@ebullioscopic/atoll-js": "^1.0.0"
+  }
+}

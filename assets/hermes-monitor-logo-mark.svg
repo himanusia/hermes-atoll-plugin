@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52" fill="none" color="#c7d2d2" role="img" aria-labelledby="title">
+  <title id="title">Hermes monitor logo mark</title>
+  <!-- Transparent, single-colour line mark derived from the Hermes portrait logo. -->
+  <g stroke="currentColor" stroke-width="2.55" stroke-linecap="round" stroke-linejoin="round">
+    <!-- open hair / head silhouette -->
+    <path d="M14.1 42.8C10.8 38.2 9.7 32.2 10.9 26.1C12.8 16.5 21.1 9.2 30.8 9.2C40.1 9.2 47 15.5 48.8 24.4C49.6 31.2 47.9 38 44.8 42.8"/>
+    <!-- swept fringe -->
+    <path d="M16.8 21.5C19.8 15.9 25.3 12.1 31.5 11.9C36.9 11.7 42 14.4 45.3 19.2"/>
+    <!-- simple face contour -->
+    <path d="M23.5 19.1C21.3 22.4 20.5 26.7 21.2 30.9C22.2 37.1 25.9 40.9 30.3 40.9C35.1 40.9 39 35.7 39 29.1C39 24.5 37.6 20.5 35.3 17.7"/>
+    <!-- quiet smile and shoulders -->
+    <path d="M27.1 35.2C29.1 36.3 31.4 36.3 33.4 35.2"/>
+    <path d="M15.8 45.3C19.6 41.2 24.4 39.1 30.3 39.1C36.3 39.1 41.1 41.2 45.1 45.3"/>
+  </g>
+  <g fill="currentColor">
+    <circle cx="25.2" cy="29.1" r="1.25"/>
+    <circle cx="35.1" cy="29.1" r="1.25"/>
+  </g>
+</svg>
