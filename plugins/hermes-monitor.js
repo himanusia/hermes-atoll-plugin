@@ -746,6 +746,7 @@ function dashboardHTML(m) {
 .session-row:hover{background:var(--panel2)}
 .session-row[data-status="running"]{background:color-mix(in srgb,var(--accent) 11%,var(--sidebar))}
 .session-row[aria-selected="true"],.session-row[aria-selected="true"]:hover{border-color:transparent;background:var(--panel2)}
+.session-row[data-status="running"][aria-selected="true"],.session-row[data-status="running"][aria-selected="true"]:hover{background:color-mix(in srgb,var(--accent) 20%,var(--sidebar))}
 .session-row[aria-selected="true"] .row-title{color:var(--accent)}
 .status-dot{flex:0 0 5px;width:5px;height:5px;border-radius:50%;background:var(--idle-dot)}
 .session-row[data-status="running"] .status-dot{background:var(--accent)}
