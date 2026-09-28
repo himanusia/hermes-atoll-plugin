@@ -1,7 +1,7 @@
 {
-  "name": "hermes-atoll-extension",
-  "version": "1.0.0",
-  "description": "Local Hermes session and turn monitor extension for Atoll on macOS",
+  "name": "hermes-atoll-sidecar",
+  "version": "0.2.0",
+  "description": "Node sidecar for the Hermes Agent Atoll plugin on macOS",
   "private": true,
   "scripts": {
     "test": "node tools/test-rendering.js && node tools/test-transitions.js && node tools/test-host-lifecycle.js && node tools/test-state-watch.js"

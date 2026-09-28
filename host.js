@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * hermes-notch host — loads every plugin in ./plugins and drives them into Atoll.
+ * Hermes Atoll host — loads the monitor and drives it into Atoll.
  *
  *   node host.js          stay alive, refresh each plugin on its own interval
  *   node host.js --once   one refresh cycle after connect, then exit (diagnostics)
@@ -17,6 +17,8 @@ const { AtollClient } = require('@ebullioscopic/atoll-js');
 const { createResourceState, reconcileResources } = require('./lib/resource-reconciler.js');
 
 const PLUGINS_DIR = path.join(__dirname, 'plugins');
+const HERMES_HOME = process.env.HERMES_HOME || path.join(process.env.HOME, '.hermes');
+const INSTANCE_LOCK = path.join(HERMES_HOME, 'run', 'hermes-atoll-plugin.pid');
 const BUNDLE_ID = 'dev.hima.notch-plugins'; // authorized in Atoll settings
 const CONNECT_TIMEOUT_MS = 6000;
 const RETRY_MS = 10000;
@@ -24,6 +26,42 @@ const ONCE = process.argv.includes('--once');
 
 const log = (...a) => console.log(`[${new Date().toISOString()}]`, ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function processExists(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error.code === 'EPERM'; }
+}
+
+function acquireInstanceLock() {
+  fs.mkdirSync(path.dirname(INSTANCE_LOCK), { recursive: true, mode: 0o700 });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const fd = fs.openSync(INSTANCE_LOCK, 'wx', 0o600);
+      fs.writeFileSync(fd, `${process.pid}\n`);
+      fs.closeSync(fd);
+      process.on('exit', () => {
+        try {
+          if (Number(fs.readFileSync(INSTANCE_LOCK, 'utf8').trim()) === process.pid) fs.unlinkSync(INSTANCE_LOCK);
+        } catch {}
+      });
+      return true;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      let existingPid = 0;
+      try { existingPid = Number(fs.readFileSync(INSTANCE_LOCK, 'utf8').trim()); } catch {}
+      if (Number.isInteger(existingPid) && existingPid > 1 && processExists(existingPid)) return false;
+      try { fs.unlinkSync(INSTANCE_LOCK); } catch (unlinkError) {
+        if (unlinkError.code !== 'ENOENT') throw unlinkError;
+      }
+    }
+  }
+  return false;
+}
+
+if (!ONCE && !acquireInstanceLock()) {
+  log('Hermes Atoll monitor already running; duplicate launch ignored');
+  process.exit(0);
+}
 
 // ---------- load plugins ----------
 const plugins = fs.readdirSync(PLUGINS_DIR)

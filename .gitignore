@@ -7,12 +7,14 @@ backups/
 *.bak
 .host-once.log
 .scratch*
+__pycache__/
 
 # Local exploratory probes, screenshots, and UI automation helpers
 .DS_Store
 tools/*
 !tools/build-wing-icon.py
 !tools/test-host-lifecycle.js
+!tools/test-plugin-entrypoint.py
 !tools/test-rendering.js
 !tools/test-state-watch.js
 !tools/test-transitions.js

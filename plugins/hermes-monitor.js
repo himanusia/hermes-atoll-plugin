@@ -91,8 +91,8 @@ const SESSION_QUERY_LIMIT = 400;
 const nowS = () => Date.now() / 1000;
 
 // In-memory transition memory is intentional: this plugin never writes to
-// Hermes state. The LaunchAgent keeps it alive; a restart starts cleanly with
-// no false "finished" animation for old rows.
+// Hermes state. The native Hermes plugin starts the host on session start; a
+// restart begins without a false "finished" animation for old rows.
 let previousSnapshot = null;
 let lastFinish = null;
 let finishPulseUntilMs = 0;
@@ -660,6 +660,31 @@ function sessionDeepLink(sessionId) {
   return `hermes://session/${encodeURIComponent(String(sessionId ?? ''))}`;
 }
 
+function chronologicalRecentActions(actions) {
+  return (Array.isArray(actions) ? actions : []).slice().sort((left, right) => {
+    const leftAt = Number(left?.at);
+    const rightAt = Number(right?.at);
+    if (!Number.isFinite(leftAt)) return Number.isFinite(rightAt) ? 1 : 0;
+    if (!Number.isFinite(rightAt)) return -1;
+    return leftAt - rightAt;
+  });
+}
+
+function formatWibTime(timestamp) {
+  const seconds = Number(timestamp);
+  if (!Number.isFinite(seconds)) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(seconds * 1000));
+}
+
+function sessionArcMarkup(active) {
+  return active ? '<span class="arc-border arc-row" aria-hidden="true"></span>' : '';
+}
+
 function dashboardHTML(m) {
   const sessions = Array.isArray(m.sessions) ? m.sessions : [];
   const openCount = sessions.filter((session) => session.status !== 'ended').length;
@@ -712,19 +737,22 @@ function dashboardHTML(m) {
    value. The palette mirrors the LIVE Hermes desktop window as measured on screen
    (surfaces #0d242d/#081e25/#182a30, text #a3acae, accent blue #79a0c1, ok green #55a583).
 */
-:root{color-scheme:dark;--bg:#001f26;--sidebar:#001f26;--panel:#03252e;--panel2:#102b31;--line:#2d4c5b;--text:#a1acae;--muted:#a2bbbb;--dim:#859c9f;--accent:#97c8f1;--green:#6acea4;--red:#ef9fa9;--ended:#50646a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-synthesis:none}
+:root{color-scheme:dark;--bg:#001f26;--sidebar:#001f26;--panel:#03252e;--panel2:#102b31;--line:#2d4c5b;--text:#a1acae;--muted:#a2bbbb;--dim:#859c9f;--idle-dot:color-mix(in srgb,var(--text) 36%,transparent);--accent:#97c8f1;--green:#6acea4;--red:#ef9fa9;--ended:#50646a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-synthesis:none}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--text)}button{font:inherit}
 .panel{display:grid;grid-template-columns:200px minmax(0,1fr);width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;border-radius:0 0 16px 16px;background:var(--panel)}
 .sidebar{display:flex;flex-direction:column;min-width:0;min-height:0;padding:14px 16px 16px;background:var(--sidebar);}
 .session-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#46545b transparent;padding:2px 3px 5px}
-.session-row{display:flex;align-items:center;gap:9px;width:100%;min-height:32px;margin:1px 0;padding:5px 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.session-row{position:relative;display:flex;align-items:center;gap:9px;width:100%;min-height:32px;margin:1px 0;padding:5px 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
 .session-row:hover{background:var(--panel2);border-radius:0}
 .session-row[aria-selected="true"],.session-row[aria-selected="true"]:hover{border-color:transparent;background:transparent}
 .session-row[aria-selected="true"] .row-title{color:var(--accent)}
-.status-dot{flex:0 0 5px;width:5px;height:5px;border-radius:50%;background:var(--dim)}
+.status-dot{flex:0 0 5px;width:5px;height:5px;border-radius:50%;background:var(--idle-dot)}
 .session-row[data-status="running"] .status-dot{background:var(--accent)}
 .session-row[data-status="needs-action"] .status-dot{background:var(--red)}
 .session-row[data-status="ended"] .status-dot{background:var(--ended)}
+.arc-row{position:absolute;inset:-1px;border-radius:inherit;pointer-events:none}
+.session-row[data-status="running"] .arc-row{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent);animation:arc-border 2.6s ease-in-out infinite}
+@keyframes arc-border{50%{box-shadow:inset 0 0 0 1px var(--accent)}}
 .row-title{flex:1;min-width:0;overflow:hidden;font-size:12px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
 .row-ago{flex:0 0 auto;color:var(--dim);font-size:10px;white-space:nowrap}
 .list-empty{padding:14px 7px;color:var(--dim);font-size:11px;line-height:1.45}
@@ -766,7 +794,7 @@ function dashboardHTML(m) {
       <div class="state-line"><span class="state-label" id="state-label">OPEN</span><span class="model-name" id="model-name"></span></div>
       <div class="session-name" id="session-name">Session</div>
       <div class="activity-line" id="activity-line">Idle</div>
-      <div class="recent-section" aria-label="Recent actions"><div class="recent-heading">RECENT ACTIONS</div><ol class="recent-actions" id="recent-actions"></ol></div>
+      <div class="recent-section" aria-label="Recent actions"><div class="recent-heading">RECENT STEPS · OLDEST FIRST</div><ol class="recent-actions" id="recent-actions"></ol></div>
       <div class="stats-line" id="stats-line"></div>
       <div class="context-line" id="context-line"></div>
     </div>
@@ -777,6 +805,9 @@ function dashboardHTML(m) {
 </main>
 <script>
 const sessionDeepLink=${sessionDeepLink.toString()};
+const chronologicalRecentActions=${chronologicalRecentActions.toString()};
+const formatWibTime=${formatWibTime.toString()};
+const sessionArcMarkup=${sessionArcMarkup.toString()};
 const DATA=(()=>{const p=${scriptJSON(data)};return {dbOk:!!p.d,runningCount:p.r,openCount:p.o,recentCount:p.e,totalCount:p.t,shownCount:p.c,sessions:p.s.map((s)=>({id:s[0],label:s[0].length<=8?s[0]:s[0].slice(-6),status:s[1]==='a'?'needs-action':s[1]==='r'?'running':s[1]==='e'?'ended':'open',needsAction:s[1]==='a',turnActive:s[1]==='r',activity:{r:'running',w:'working',n:'needs input',i:'idle'}[s[2]]||'idle',source:s[3],model:s[4],provider:s[5],billingMode:s[6],profile:s[7],startedAt:s[8],lastActivityAt:s[9],endedAt:s[10],messageCount:s[11],toolCallCount:s[12],apiCallCount:s[13],inputTokens:s[14],outputTokens:s[15],cacheReadTokens:s[16],cacheWriteTokens:s[17],reasoningTokens:s[18],turnStartedAt:s[19],title:s[20],activityDescription:s[21]||'',recentActions:(s[22]||[]).map((a)=>({label:a.label,at:a.at}))}))}})();
 (() => {
   const list=document.getElementById('session-list');
@@ -798,7 +829,7 @@ const DATA=(()=>{const p=${scriptJSON(data)};return {dbOk:!!p.d,runningCount:p.r
     for(const s of items){
       const row=document.createElement('a');row.className='session-row';row.href=sessionDeepLink(s.id);row.dataset.sessionId=s.id;row.setAttribute('role','option');row.setAttribute('aria-selected',String(s.id===selectedId));
       row.dataset.status=s.status;
-      row.innerHTML='<span class="status-dot" aria-hidden="true"></span><span class="row-title"></span><span class="row-ago"></span>';
+      row.innerHTML='<span class="status-dot" aria-hidden="true"></span>'+sessionArcMarkup(s.turnActive)+'<span class="row-title"></span><span class="row-ago"></span>';
       row.querySelector('.row-title').textContent=s.title||'Untitled session';
       row.setAttribute('aria-label',s.title||'Untitled session');
       const time=row.querySelector('.row-ago');
@@ -820,13 +851,13 @@ const DATA=(()=>{const p=${scriptJSON(data)};return {dbOk:!!p.d,runningCount:p.r
     const activityFallback=s.needsAction?'Waiting for your input':s.turnActive?(s.activity==='working'?'Working':'Running'):'Idle';
     set('activity-line',s.activityDescription||activityFallback);
     recentActionsNode.replaceChildren();
-    const recentActions=Array.isArray(s.recentActions)?s.recentActions:[];
+    const recentActions=chronologicalRecentActions(Array.isArray(s.recentActions)?s.recentActions:[]);
     if(!recentActions.length){const item=document.createElement('li');item.className='recent-empty';item.textContent='No tool activity recorded yet';recentActionsNode.append(item);}
     else for(const action of recentActions){
       const item=document.createElement('li');item.className='recent-action';
       const label=document.createElement('span');label.className='recent-action-name';label.textContent=String(action.label||'Used a tool');
       const time=document.createElement('span');time.className='recent-action-ago';
-      const at=Number(action.at);if(Number.isFinite(at)){time.dataset.ageTs=String(at);time.textContent=ago(at);}else time.textContent='—';
+      const at=Number(action.at);if(Number.isFinite(at)){time.textContent='FINISHED · '+formatWibTime(at);}else time.textContent='—';
       item.append(label,time);recentActionsNode.append(item);
     }
     const tokens=(Number(s.inputTokens)||0)+(Number(s.outputTokens)||0);
@@ -974,7 +1005,7 @@ module.exports = {
   debug: collect,
   _detectTransitions: detectTransitions,
   _resetTransitions: resetTransitionState,
-  _render: { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, toolActionLabel },
+  _render: { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup, toolActionLabel },
   _watch: { watchStateDb },
 };
 

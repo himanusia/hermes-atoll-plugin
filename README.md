@@ -1,73 +1,59 @@
 <div align="center">
-  <img src="assets/hermes-atoll-thumbnail.png" width="800" alt="Roman-style engraving of Hermes with a subtle laptop notch motif" />
+  <img src="assets/hermes-atoll-thumbnail.jpg" width="800" alt="Monochrome Roman engraving of Hermes above a subtle notch-shaped status indicator" />
   <h1>Hermes Atoll</h1>
-  <p>A local macOS extension for Hermes session and turn status in Atoll.</p>
+  <p>A native Hermes Agent plugin that brings session and turn status to Atoll on macOS.</p>
 </div>
 
-Hermes Atoll connects the Hermes state database to Atoll's notch interface. It runs locally, reads `~/.hermes/state.db` without modifying it, and never sends transcript contents to a remote service.
+Hermes Atoll reads Hermes' local state database and presents a compact monitor in Atoll's notch UI. It does not modify the database or send transcript contents to a remote service.
 
-## Features
+## What it does
 
 - Shows active turns, sessions that need attention, and recent session details.
-- Keeps the completion notice compact (`Complete`) and does not auto-expand the notch.
-- Uses one persistent dashboard and one transient live activity with stable IDs. Refreshes update those resources instead of adding duplicates; the transient activity is retracted when there is nothing active to show.
-- Watches SQLite/WAL changes with `fswatch` and falls back to periodic refreshes if it is unavailable.
-- Leaves Atoll's native tabs untouched and does not expose transcript bodies or tool arguments.
+- Keeps the completion status compact and does not request a completion sneak peek.
+- Uses stable Atoll resource IDs and a single monitor process, so refreshes update the existing display instead of creating duplicates.
+- Watches SQLite and WAL changes with `fswatch`, then falls back to periodic refreshes if `fswatch` is unavailable.
+- Does not expose transcript bodies or tool arguments.
 
 ## Requirements
 
 - macOS with [Atoll](https://atoll.app/) installed and its local extension API enabled.
-- Node.js 22.5 or newer (`node:sqlite` is used by the monitor).
-- Hermes with its state database at `~/.hermes/state.db`. Set `HERMES_HOME` in the LaunchAgent if the database is stored elsewhere.
-- Homebrew `fswatch` is recommended for fast updates. The monitor still works with its periodic refresh if `fswatch` is missing.
-
-Atoll must be running and the extension bundle identifier `dev.hima.notch-plugins` must be authorized when prompted.
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) with its state database at `~/.hermes/state.db`. Set `HERMES_HOME` if your Hermes home is elsewhere.
+- Node.js 22.5 or newer. The Hermes installer can install this plugin's pinned Node dependencies in its own plugin directory.
+- Homebrew `fswatch` is recommended for faster updates; periodic refresh still works without it.
 
 ## Install
 
-Install Node.js if needed, then run:
+Install the plugin from GitHub:
 
 ```sh
-brew install fswatch
-git clone https://github.com/himanusia/hermes-atoll-extension.git "$HOME/.hermes/notch"
-cd "$HOME/.hermes/notch"
-npm ci
+hermes plugins install himanusia/hermes-atoll-plugin
+hermes plugins enable hermes-atoll
 ```
 
-Install the LaunchAgent. This creates a user-specific plist from the checked-in template so it works with your Node and home-directory paths:
+Accept the installer's separate prompt to install the plugin's Node dependencies. Hermes keeps them in the plugin directory. The monitor starts on the next Hermes session. Start it immediately with:
 
 ```sh
-NODE_BINARY="$(command -v node)"
-NOTCH_HOME="$HOME/.hermes/notch"
-mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.hermes/logs/notch"
-sed \
-  -e "s|__NODE_BINARY__|$NODE_BINARY|g" \
-  -e "s|__NOTCH_HOME__|$NOTCH_HOME|g" \
-  launchd/com.hima.hermes-notch.plist \
-  > "$HOME/Library/LaunchAgents/com.hima.hermes-notch.plist"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.hima.hermes-notch.plist"
+hermes atoll start
 ```
 
-Open Atoll and approve the extension if asked. The host retries its connection while Atoll is closed. To inspect its log:
+When Atoll prompts for authorization, allow the extension bundle `dev.hima.notch-plugins`.
+
+## Manage the monitor
 
 ```sh
-tail -f "$HOME/.hermes/logs/notch/launchd.log"
+hermes atoll status
+hermes atoll start
+hermes atoll stop
+hermes atoll restart
 ```
 
-To update an existing installation after pulling changes:
+`stop` keeps the monitor off until the next Hermes session. Logs are written to `~/.hermes/logs/notch/hermes-atoll.log`.
+
+To remove the plugin:
 
 ```sh
-cd "$HOME/.hermes/notch"
-git pull --ff-only
-npm ci
-launchctl kickstart -k "gui/$(id -u)/com.hima.hermes-notch"
-```
-
-To uninstall the LaunchAgent:
-
-```sh
-launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.hima.hermes-notch.plist"
-rm "$HOME/Library/LaunchAgents/com.hima.hermes-notch.plist"
+hermes atoll stop
+hermes plugins remove hermes-atoll
 ```
 
 ## Development
@@ -75,13 +61,15 @@ rm "$HOME/Library/LaunchAgents/com.hima.hermes-notch.plist"
 ```sh
 npm ci
 npm test
+python3 tools/test-plugin-entrypoint.py
+hermes plugins doctor --ci .
 ```
 
-The tests cover rendering, state transitions, host lifecycle, and SQLite/WAL watching. The LaunchAgent template is `launchd/com.hima.hermes-notch.plist`; replace its `__NODE_BINARY__` and `__NOTCH_HOME__` placeholders before loading it.
+The Node tests cover rendering, state transitions, host lifecycle, and SQLite/WAL watching. The Python smoke test checks Hermes hook and CLI registration without starting Atoll.
 
 ## Repository thumbnail
 
-The original monochrome Hermes engraving is in `assets/hermes-atoll-thumbnail.png` and is shown above. To use it as GitHub's social-preview image, open the repository's **Settings → General → Social preview** and upload that file.
+`assets/hermes-atoll-thumbnail.jpg` is a landscape 1733 × 908 monochrome illustration. It uses a subtle top-edge notch shape to suggest Atoll's Dynamic Island function. To set it as GitHub's social-preview image, upload the JPG from **Settings → General → Social preview**.
 
 ## License
 
