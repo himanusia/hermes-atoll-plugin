@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """build-wing-icon - regenerate assets/hermes-monitor-icon.png for the Atoll wing.
 
-Geometry: PNG 88x52 drawn 1:1 in Atoll's {44,26}pt wing slot. The 52px tile is
-pasted at x=0 (flush against the pill's left edge) - the position the user
-approved (small left padding; a padded/centred variant read as "terlalu ke
-tengah, padding kiri jauh").
+Geometry: PNG 52x52 drawn 1:1 in Atoll's {26,26}pt music-sized wing slot.
+Do not reserve the old transparent 36px tail: it widened Hermes' closed notch.
 
 Artwork policy (2026-09-26, final): the drawing is the ORIGINAL artwork
 (assets/hermes-monitor-icon-original.png) pasted 1:1. NO threshold, NO levels,
@@ -15,7 +13,7 @@ from PIL import Image
 from pathlib import Path
 import sys
 
-REPO = Path.home() / ".hermes/notch"
+REPO = Path(__file__).resolve().parents[1]
 ASSETS = REPO / "assets"
 SRC = ASSETS / "hermes-monitor-icon-original.png"
 OUT = ASSETS / "hermes-monitor-icon.png"
@@ -34,7 +32,7 @@ def main():
         s = 52.0 / max(w, h)
         tile = tile.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
         w, h = tile.size
-    canvas = Image.new("RGBA", (88, 52), (0, 0, 0, 0))
+    canvas = Image.new("RGBA", (52, 52), (0, 0, 0, 0))
     canvas.paste(tile, (0, (52 - h) // 2), tile)
     canvas.save(OUT)
     print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
