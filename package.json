@@ -4,7 +4,7 @@
   "description": "Node sidecar for the Hermes Agent Atoll plugin on macOS",
   "private": true,
   "scripts": {
-    "test": "node tools/test-rendering.js && node tools/test-transitions.js && node tools/test-host-lifecycle.js && node tools/test-state-watch.js"
+    "test": "node tools/test-rendering.js && node tools/test-transitions.js && node tools/test-host-lifecycle.js && node tools/test-state-watch.js && node tools/test-pacing.js"
   },
   "keywords": [],
   "author": "",
