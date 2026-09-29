@@ -687,7 +687,9 @@ function liveActivity(m) {
     },
     sneakPeekConfig: {
       enabled: peekEnabled,
-      showOnUpdate: false,
+      // Atoll replaces an already-presented id in place, so a finish that arrives
+      // as an update still has to be allowed to animate.
+      showOnUpdate: peekEnabled,
     },
     sneakPeekTitle: 'Hermes',
     sneakPeekSubtitle: m.pulse ? finishText(m) : null,

@@ -104,7 +104,10 @@ const sessionFinishActivity = liveActivity({ ...metrics, state: 'done', active: 
 assert.equal(sessionFinishActivity.sneakPeekSubtitle, 'Session ended');
 assert.match(finishActivity.sneakPeekTitle, /^Hermes$/);
 assert.equal(finishActivity.sneakPeekConfig.enabled, true, 'a finished turn must render its completion text on the closed notch');
-assert.equal(finishActivity.sneakPeekConfig.showOnUpdate, false, 'ordinary count updates never animate');
+assert.equal(finishActivity.sneakPeekConfig.showOnUpdate, true, 'a finish may arrive as an in-place update, so it must be allowed to animate');
+const runningActivity = liveActivity(metrics);
+assert.equal(runningActivity.sneakPeekConfig.enabled, false, 'ordinary count changes never animate');
+assert.equal(runningActivity.sneakPeekConfig.showOnUpdate, false, 'ordinary count changes never animate');
 const suppressedPeek = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, suppressPeek: true, finishedNow: [{ kind: 'turn', label: '42a' }] });
 assert.equal(suppressedPeek.sneakPeekConfig.enabled, false, 'a burst suppresses the second peek');
 assert.equal(suppressedPeek.sneakPeekSubtitle, 'Complete', 'the completion text stays available for the hover state');
