@@ -9,7 +9,8 @@ Hermes Atoll reads Hermes' local state database and presents a compact monitor i
 ## What it does
 
 - Shows active turns, sessions that need attention, and recent session details.
-- Keeps the completion status compact and does not request a completion sneak peek.
+- Shows a completion text (`Complete`, `Session ended`, `N complete`) in a brief sneak peek when a turn finishes; a burst of finishes animates at most once every 10 s, and a closed notch keeps rendering glyphs only.
+- Floors dashboard rewrites at one every 5 s so the tab stays well inside Atoll's per-bundle extension rate limit, then delivers the final state on a deferred wake.
 - Uses stable Atoll resource IDs and a single monitor process, so refreshes update the existing display instead of creating duplicates.
 - Watches SQLite and WAL changes with `fswatch`, then falls back to periodic refreshes if `fswatch` is unavailable.
 - Does not expose transcript bodies or tool arguments.

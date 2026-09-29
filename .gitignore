@@ -14,6 +14,7 @@ __pycache__/
 tools/*
 !tools/build-wing-icon.py
 !tools/test-host-lifecycle.js
+!tools/test-pacing.js
 !tools/test-plugin-entrypoint.py
 !tools/test-rendering.js
 !tools/test-state-watch.js

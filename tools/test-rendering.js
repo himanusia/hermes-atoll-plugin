@@ -103,8 +103,16 @@ assert.equal(finishActivity.sneakPeekSubtitle, 'Complete');
 const sessionFinishActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, finishedNow: [{ kind: 'session', label: '42a' }] });
 assert.equal(sessionFinishActivity.sneakPeekSubtitle, 'Session ended');
 assert.match(finishActivity.sneakPeekTitle, /^Hermes$/);
-assert.equal(finishActivity.sneakPeekConfig.enabled, false);
+assert.equal(finishActivity.sneakPeekConfig.enabled, true, 'a finished turn must render its completion text on the closed notch');
+assert.equal(finishActivity.sneakPeekConfig.showOnUpdate, false, 'ordinary count updates never animate');
+const suppressedPeek = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, suppressPeek: true, finishedNow: [{ kind: 'turn', label: '42a' }] });
+assert.equal(suppressedPeek.sneakPeekConfig.enabled, false, 'a burst suppresses the second peek');
+assert.equal(suppressedPeek.sneakPeekSubtitle, 'Complete', 'the completion text stays available for the hover state');
 assert.equal(finishActivity.accentColor.red, 0x7e / 255, 'finish tone is muted, not neon');
+const pulseTailActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: false, pulseActive: true, lastFinishText: '2 complete' });
+assert.equal(pulseTailActivity.subtitle, '2 complete', 'the pulse grace window keeps the completion text instead of "0 running"');
+assert.equal(pulseTailActivity.trailingContent.type, 'text', 'zero running turns render a digit, not a hidden slot');
+assert.equal(pulseTailActivity.trailingContent.text, '0', 'the count visibly lands on zero before the wing retracts');
 
 const experience = tab(metrics);
 assert.equal(experience.tab.title, '\u200B');
@@ -239,7 +247,8 @@ assert.notEqual(experienceSignature(metrics), experienceSignature(toolHistoryCha
 
 const idle = session({ id: 'idle-session-0004', label: '000004' });
 const idleMetrics = { ...metrics, state: 'idle', active: [], sessions: [idle], pulse: false };
-assert.equal(liveActivity(idleMetrics).trailingContent.type, 'none');
+assert.equal(liveActivity(idleMetrics).trailingContent.type, 'text', 'an idle wing still renders its count instead of a placeholder');
+assert.equal(liveActivity(idleMetrics).trailingContent.text, '0');
 assert.equal(liveActivity(idleMetrics).badgeIcon, undefined);
 assert.equal(tab(idleMetrics).tab.allowWebInteraction, true);
 assert.equal(tab(idleMetrics).tab.badgeIcon, undefined, 'native tab does not request badge chrome behind the glyph');

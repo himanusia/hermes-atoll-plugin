@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { AtollClient } = require('@ebullioscopic/atoll-js');
 const { createResourceState, reconcileResources } = require('./lib/resource-reconciler.js');
+const { shouldReschedule } = require('./lib/wake-schedule.js');
 
 const PLUGINS_DIR = path.join(__dirname, 'plugins');
 const HERMES_HOME = process.env.HERMES_HOME || path.join(process.env.HOME, '.hermes');
@@ -133,11 +134,15 @@ function startWatchers() {
 
 function scheduleRefresh(p, delayMs = 80) {
   if (!bootstrapped || !client.isConnected) return;
-  clearTimeout(refreshTimers.get(p.id));
-  refreshTimers.set(p.id, setTimeout(() => {
+  const pending = refreshTimers.get(p.id);
+  // Never let a long deferred wake replace a shorter one that is already armed.
+  if (!shouldReschedule(pending ? pending.delayMs : null, delayMs)) return;
+  if (pending) clearTimeout(pending.timer);
+  const timer = setTimeout(() => {
     refreshTimers.delete(p.id);
     void refresh(p);
-  }, delayMs));
+  }, delayMs);
+  refreshTimers.set(p.id, { timer, delayMs });
 }
 
 async function dismissLegacy() {
@@ -218,7 +223,7 @@ async function refresh(p) {
     if (built.pulse) {
       const durationMs = Number(built.pulseDurationMs) || 5500;
       const n = (built._metrics?.finishedNow || []).length;
-      log(`${p.id}: PULSE - ${n || 1} finished; sneak-peek requested`);
+      log(`${p.id}: PULSE - ${n || 1} finished; ${built._metrics?.suppressPeek ? 'sneak peek suppressed (burst window)' : 'sneak peek requested'}`);
       pendingPulses.set(p.id, { built, activityId: built.liveActivity?.id, expiresAt: Date.now() + durationMs, attempts: 0 });
       schedulePulseExpiry(p, durationMs);
     }

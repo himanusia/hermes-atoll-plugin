@@ -95,9 +95,22 @@ const nowS = () => Date.now() / 1000;
 // restart begins without a false "finished" animation for old rows.
 let previousSnapshot = null;
 let lastFinish = null;
+let lastFinishText = null;
 let finishPulseUntilMs = 0;
 let previousExperienceSignature = null;
+let lastPeekAtMs = 0;
+let lastExperienceSentAtMs = 0;
 const FINISH_PULSE_MS = 5500;
+// A closed live activity renders glyphs, never text, so the sneak peek is the
+// only place a finish can show words. One peek per burst is enough: a run of
+// finishes must not hold the panel open, and a suppressed peek is recorded in
+// the metrics so the host log can explain missing text.
+const PEEK_MIN_INTERVAL_MS = 10000;
+// Atoll accounts extension registrations per bundle in a rolling window, and the
+// dashboard tab carries volatile counters (tokens, counts, row times) that change
+// on every database write. Rewrite it on a floor; the final state still lands
+// through the deferred wake the host schedules from nextWakeInMs.
+const EXPERIENCE_MIN_INTERVAL_MS = 5000;
 
 // ---------- WIB helpers ----------
 function wibParts(ms) {
@@ -331,7 +344,11 @@ const FINISH_CONFIRM_MS = 750;
 function resetTransitionState() {
   previousSnapshot = null;
   lastFinish = null;
+  lastFinishText = null;
   finishPulseUntilMs = 0;
+  previousExperienceSignature = null;
+  lastPeekAtMs = 0;
+  lastExperienceSentAtMs = 0;
 }
 
 function detectTransitions(leases, rows, observedAt = nowS()) {
@@ -463,6 +480,7 @@ function collect() {
       sessionsToday,
       recentDone: null,
       lastFinish,
+      lastFinishText,
       observedAt: Date.now(),
       nextWakeInMs: 0,
     };
@@ -531,7 +549,10 @@ function collect() {
     .sort((a, b) => Number(b.ended_at) - Number(a.ended_at))[0] || null;
 
   const pulse = transition.finished.length > 0;
-  if (pulse) finishPulseUntilMs = Date.now() + FINISH_PULSE_MS;
+  if (pulse) {
+    finishPulseUntilMs = Date.now() + FINISH_PULSE_MS;
+    lastFinishText = finishText({ finishedNow: transition.finished });
+  }
   const pulseActive = pulse || Date.now() < finishPulseUntilMs;
   const state = pulse ? 'done' : active.length ? 'running' : needsActionCount ? 'needs-action' : 'idle';
   return {
@@ -546,6 +567,7 @@ function collect() {
     sessionsToday,
     recentDone,
     lastFinish,
+    lastFinishText,
     observedAt: Date.now(),
     nextWakeInMs: transition.nextWakeInMs,
   };
@@ -574,6 +596,22 @@ function finishText(m) {
   return `${events.length} complete`;
 }
 
+// Both pacing rules are pure so tests can pin them without a database or an
+// Atoll connection.
+function peekDecision({ pulse, nowMs, lastPeekAtMs }) {
+  if (!pulse) return { peek: false, suppressed: false };
+  if (nowMs - lastPeekAtMs < PEEK_MIN_INTERVAL_MS) return { peek: false, suppressed: true };
+  return { peek: true, suppressed: false };
+}
+
+function experienceSendDecision({ changed, forcePresent, nowMs, lastSentAtMs }) {
+  if (!changed) return { send: false, deferredInMs: 0 };
+  if (forcePresent) return { send: true, deferredInMs: 0 };
+  const elapsedMs = nowMs - lastSentAtMs;
+  if (elapsedMs >= EXPERIENCE_MIN_INTERVAL_MS) return { send: true, deferredInMs: 0 };
+  return { send: false, deferredInMs: EXPERIENCE_MIN_INTERVAL_MS - elapsedMs };
+}
+
 const FORCE_IDLE_PATH = path.join(__dirname, '..', '.force-idle');
 const ACTIVITY_ID = 'hermes.monitor.v3';
 const EXPERIENCE_ID = 'hermes.monitor.tab.v17';
@@ -592,12 +630,20 @@ function shouldRenderActivity(m, plan) {
 }
 function liveActivity(m) {
   const skin = SKIN[m.state] || SKIN.offline;
+  // A closed notch renders glyphs only, so the peek is the single place the
+  // completion text can appear; ask for it on a finish pulse and never on a
+  // plain update.
+  const peekEnabled = m.pulse === true && m.suppressPeek !== true;
   const openCount = (m.sessions || []).filter((session) => session.status !== 'ended').length;
   const runningCount = (m.sessions || []).filter((session) => session.turnActive && !session.needsAction).length;
   const needsActionCount = (m.sessions || []).filter((session) => session.needsAction || session.status === 'needs-action').length;
   let subtitle;
   if (!m.dbOk) subtitle = 'Hermes offline';
   else if (m.pulse) subtitle = finishText(m);
+  // Hold the completion text through the pulse grace window: falling back to
+  // "0 running" while the wing is still on screen reads as a plain state, not a
+  // finish.
+  else if (m.pulseActive && m.lastFinishText) subtitle = m.lastFinishText;
   else if (needsActionCount) subtitle = m.active.length
     ? `${m.active.length} running · ${needsActionCount} needs action`
     : `${needsActionCount} needs action`;
@@ -621,7 +667,10 @@ function liveActivity(m) {
           // width exactly in both the standalone and the paired state.
           ? { type: 'animation', data: digitPulseLottie(runningCount), size: { width: 10, height: 16 } }
           : { type: 'text', text: String(runningCount), font: systemFont(13, 'semibold'), color: createColor(121 / 255, 160 / 255, 193 / 255, 1) })
-        : { type: 'none' },
+        // Zero keeps a dim digit instead of an empty slot: the count has to land
+        // on 0 visibly before the wing retracts, otherwise the number looks
+        // frozen at the last value and then disappears.
+        : { type: 'text', text: '0', font: systemFont(13, 'semibold'), color: createColor(0x7e / 255, 0x8d / 255, 0x8f / 255, 1) },
     priority: AtollLiveActivityPriority.High,
     accentColor: skin.color,
     // Coexists with music (2026-09-26, on request): when a track plays the
@@ -636,10 +685,8 @@ function liveActivity(m) {
       sessions_today: String(m.sessionsToday ?? '?'),
       source: 'local-state-db',
     },
-    // Keep completion in the activity's compact status; auto-expanding the
-    // notch for this short message makes the panel disproportionately wide.
     sneakPeekConfig: {
-      enabled: false,
+      enabled: peekEnabled,
       showOnUpdate: false,
     },
     sneakPeekTitle: 'Hermes',
@@ -977,9 +1024,24 @@ function experienceSignature(m) {
 function build({ forcePresent = false } = {}) {
   const metrics = collect();
   const plan = surfacePlan(metrics);
+  const nowMs = Date.now();
   const signature = experienceSignature(metrics);
-  const sendExperience = forcePresent || signature !== previousExperienceSignature;
-  if (sendExperience) previousExperienceSignature = signature;
+  // Floor the dashboard rewrites; a deferred change keeps nextWakeInMs alive so
+  // the host wakes again and the final state still lands.
+  const experiencePlan = experienceSendDecision({
+    changed: signature !== previousExperienceSignature,
+    forcePresent,
+    nowMs,
+    lastSentAtMs: lastExperienceSentAtMs,
+  });
+  const sendExperience = experiencePlan.send;
+  if (sendExperience) {
+    previousExperienceSignature = signature;
+    lastExperienceSentAtMs = nowMs;
+  }
+  const peek = peekDecision({ pulse: metrics.pulse, nowMs, lastPeekAtMs });
+  if (peek.peek) lastPeekAtMs = nowMs;
+  else if (peek.suppressed) metrics.suppressPeek = true;
   return {
     liveActivity: shouldRenderActivity(metrics, plan) ? liveActivity(metrics) : null,
     experiences: sendExperience ? [tab(metrics)] : [],
@@ -989,7 +1051,7 @@ function build({ forcePresent = false } = {}) {
     },
     pulse: plan.keepActivity && plan.pulse,
     pulseDurationMs: plan.pulse ? FINISH_PULSE_MS : 0,
-    nextWakeInMs: metrics.nextWakeInMs || 0,
+    nextWakeInMs: Math.max(metrics.nextWakeInMs || 0, experiencePlan.deferredInMs),
     _metrics: metrics,
   };
 }
@@ -1009,6 +1071,7 @@ module.exports = {
   _detectTransitions: detectTransitions,
   _resetTransitions: resetTransitionState,
   _render: { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup, toolActionLabel },
+  _pacing: { FINISH_PULSE_MS, PEEK_MIN_INTERVAL_MS, EXPERIENCE_MIN_INTERVAL_MS, peekDecision, experienceSendDecision },
   _watch: { watchStateDb },
 };
 
