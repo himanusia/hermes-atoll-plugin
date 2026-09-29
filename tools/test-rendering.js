@@ -64,9 +64,9 @@ const metrics = {
 const activity = liveActivity(metrics);
 assert.equal(activity.leadingIcon.type, 'image');
 assert.ok(activity.leadingIcon.data.length > 300, 'wing icon png payload is embedded');
-// 44x26 box = 88x52px padded asset drawn 1:1, landing the tile at the
-// album-art's measured ear position (x1524 @2x) — see build-wing-icon.py.
-assert.deepEqual(activity.leadingIcon.size, { width: 44, height: 26 });
+// Cropped transparent wing artwork: its visible 52x52px region should use a
+// 26x26pt descriptor, matching music's left wing without reserving empty space.
+assert.deepEqual(activity.leadingIcon.size, { width: 26, height: 26 });
 assert.equal(activity.leadingIcon.cornerRadius, 0);
 assert.equal(activity.badgeIcon, undefined);
 assert.equal(activity.trailingContent.type, 'animation');

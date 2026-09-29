@@ -653,7 +653,7 @@ function liveActivity(m) {
     id: ACTIVITY_ID,
     title: 'Hermes',
     subtitle,
-    leadingIcon: { type: 'image', data: wingIcon(), size: { width: 44, height: 26 }, cornerRadius: 0 },
+    leadingIcon: { type: 'image', data: wingIcon(), size: { width: 26, height: 26 }, cornerRadius: 0 },
     // Right side of the notch: how many turns are running, and the count itself
     // pulses as the live state animation. badgeIcon is OMITTED entirely (not
     // {type:'none'}): an explicit none still made Atoll draw its fallback
