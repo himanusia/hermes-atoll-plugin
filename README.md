@@ -4,16 +4,43 @@
   <p>A native Hermes Agent plugin that brings session and turn status to Atoll on macOS.</p>
 </div>
 
-Hermes Atoll reads Hermes' local state database and presents a compact monitor in Atoll's notch UI. It does not modify the database or send transcript contents to a remote service.
+Hermes Atoll reads Hermes' local state database in a read-only transaction and presents a compact monitor in Atoll's notch UI. It never writes `state.db` or sends state to a remote service. When a turn starts, the notch may show one bounded, sanitized display-side request preview: text parts only, with obvious secret patterns redacted. It never exposes transcript bodies, tool arguments, provider-only content, or credentials.
 
 ## What it does
 
 - Shows active turns, sessions that need attention, and recent session details.
-- Shows a completion text (`Complete`, `Session ended`, `N complete`) in a brief sneak peek when a turn finishes; a burst of finishes animates at most once every 10 s, and a closed notch keeps rendering glyphs only.
+- Shows the actual session title with `Complete` in a brief sneak peek when a turn/session finishes. A confirmed lease release or durable `ended_at` boundary triggers it; a closed notch keeps rendering glyphs only.
 - Floors dashboard rewrites at one every 5 s so the tab stays well inside Atoll's per-bundle extension rate limit, then delivers the final state on a deferred wake.
 - Uses stable Atoll resource IDs and a single monitor process, so refreshes update the existing display instead of creating duplicates.
 - Watches SQLite and WAL changes with `fswatch`, then falls back to periodic refreshes if `fswatch` is unavailable.
-- Does not expose transcript bodies or tool arguments.
+
+## Dummy-data media evidence
+
+The media below was captured from the native Atoll surface with synthetic, display-only fixtures. It contains no real Hermes session titles, requests, transcripts, tool arguments, or desktop windows. The GIF is a timed native recording, not a slideshow; the PNGs are state captures.
+
+<p><img src="assets/demo/hermes-notch-demo.gif" width="570" alt="Timed native Atoll recording of the synthetic one-running-turn notch orbit" /></p>
+
+<p><img src="assets/demo/hermes-expanded-demo.png" width="645" alt="Native expanded Hermes panel with synthetic running, needs-action, and idle sessions" /></p>
+
+| Capability | Evidence |
+| --- | --- |
+| Start request preview | [`notch-start.png`](assets/demo/notch-start.png) |
+| One running turn and orbit | [`notch-running-1.png`](assets/demo/notch-running-1.png), timed [`hermes-notch-demo.gif`](assets/demo/hermes-notch-demo.gif) |
+| Twelve running turns / two-digit count | [`notch-running-12.png`](assets/demo/notch-running-12.png) |
+| Needs-action marker | [`notch-needs-action.png`](assets/demo/notch-needs-action.png) |
+| Completion title, `Complete`, zero, and retraction | [`notch-complete.png`](assets/demo/notch-complete.png), [`notch-idle.png`](assets/demo/notch-idle.png), [`notch-hidden.png`](assets/demo/notch-hidden.png) |
+| Expanded multi-session list, selection, details, recent steps, and stats | [`hermes-expanded-demo.png`](assets/demo/hermes-expanded-demo.png) |
+| Watcher fallback, pacing, lifecycle, transition detection, and read-only data path | `npm test` and `python3 tools/test-plugin-entrypoint.py` (behavioral evidence; screenshots do not prove these nonvisual paths) |
+
+The capture manifests are [`notch-phases.manifest.json`](assets/demo/notch-phases.manifest.json), [`hermes-notch-demo.manifest.json`](assets/demo/hermes-notch-demo.manifest.json), and [`hermes-expanded-demo.manifest.json`](assets/demo/hermes-expanded-demo.manifest.json). Re-run the native captures with the current, already-running CuaDriver socket (discover it from `ps`; never hardcode an old socket):
+
+```sh
+node tools/demo-effects.js all --seconds 6 \
+  --capture-dir "$HOME/.hermes/cache/scratch/atoll-effect-demo" \
+  --socket "$CUDRIVER_SOCKET"
+node tools/record-demo-gif.js --socket "$CUDRIVER_SOCKET"
+node tools/capture-expanded-demo.js --socket "$CUDRIVER_SOCKET"
+```
 
 ## Requirements
 

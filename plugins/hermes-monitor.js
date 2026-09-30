@@ -35,9 +35,10 @@ function wingIcon() {
   if (wingIconData === null) wingIconData = fs.readFileSync(WING_ICON).toString('base64');
   return wingIconData;
 }
-// The wing's living state: the running-turn count itself pulses. Atoll's
-// trailing 'animation' content takes a base64 lottie, so each digit ships as
-// an embedded PNG asset (SF Semibold, green) with an opacity/scale pulse.
+// The wing's living state: the running-turn count stays static while a compact
+// border orbits its perimeter. Atoll's trailing 'animation' content takes a
+// base64 lottie, so each digit ships as an embedded PNG asset (SF Semibold,
+// green) and the border is a native rounded-rect shape with trim-path motion.
 const DIGIT_PNG = {
   '0': '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',
   '1': 'iVBORw0KGgoAAAANSUhEUgAAAHgAAACgCAYAAADHCaiQAAACpUlEQVR4nO3aTasOcRjH8S+dwhvAa/CQsxSLKQuPeQfSSAp5WFjN0sbo8AJkwSixsLGxsfsvbCiFhcUpZaOULNkgTc07OHfNzG++nxdwuurbNfc197lBkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJ0jRtYyGaruwFngDHt/BnPrR1tc6MbGcBmq6cBT5tMe4srRGs6cou4D5wlYWKDdx05RDwDNjHgsUFbrrS3xU3gbvADhZuLfCQ6oATY88yFTFHVtOVM8BH44ZtcNOVncA94NrYs0zRrAM3XTkIPAf2jz3LVK3N+JC6Dmx4SIUFbrqyB3gMnBp7ljmY1ZHVdOX0cEgZN2mDh0NqY3gsKylw05UDwzdS/UGlpEd005X+1eedccM2uOnK7uGQ6j9zV+Uf8BC4zIJMboObrhwZDqlVxv0KHGvr6goLM7nAw/9s+1ehVXkKHGrrqrBAk3xEr8jP/nHc1tULFiw18GvgQltX31i4KT6it+I3cAM4ady8DX4PnGvr6vPYg0xJwgb/Be4Ah42bt8FfgPNtXb0Ze5CpmvMGPxpef4wbtsE/gEttXb0ce5A5mFvgV8DFtq6+jz3IXMwl8C/gVltXD8YeZG7mEPjt8PqzOfYgczTlI+sPcBs4aty8Dd4ctrbfXoVtcH9IrRs3dIPbuup/waHgDdYKGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZOJyBwxk4nIHDGTicgcMZWJIkSZLEgvwHGtJsLgsTPdQAAAAASUVORK5CYII=',
@@ -50,35 +51,198 @@ const DIGIT_PNG = {
   '8': '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',
   '9': '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',
 };
+const DIGIT_ANIMATION_FPS = 30;
+const DIGIT_ANIMATION_FRAMES = 72; // 2.4s: moving baseline plus a quicker sweep.
+const DIGIT_ANIMATION_MIN_SIZE = 26;
+const DIGIT_ANIMATION_HEIGHT = 26;
+const DIGIT_ANIMATION_MAX_SIZE = 26;
+const DIGIT_CANVAS_WIDTH = 220;
+const DIGIT_CANVAS_HEIGHT = 220;
+const DIGIT_CANVAS_STEP = 0;
+const DIGIT_ASSET_WIDTH = 120;
+const DIGIT_ASSET_HEIGHT = 160;
+const DIGIT_ASSET_ANCHOR = [60, 80, 0];
+const DIGIT_LAYER_Y = 82;
+const DIGIT_LAYER_STEP = 80;
+const ARC_ANGLE_START = 135;
+const ARC_ANGLE_END = 495;
+// The compact wing needs a longer tail than the large session-row border.
+// Cover three quarters of the perimeter and ease the offset instead of constant speed.
+const ARC_GRADIENT_STOPS = [
+  { angle: 90, opacity: 0 },
+  { angle: 200, opacity: 0.45 },
+  { angle: 300, opacity: 1 },
+  { angle: 360, opacity: 0 },
+];
+const ARC_SEGMENT_BOUNDARIES = [90, ...Array.from({ length: 90 }, (_, i) => 91.5 + i * 3), 360];
+const RUNNING_ACCENT = [0x79 / 255, 0xa0 / 255, 0xc1 / 255, 1];
 const digitLottieCache = new Map();
-function digitPulseLottie(count) {
-  const key = String(count);
-  const png = DIGIT_PNG[key];
-  if (!png) return null; // 10+ running turns: fall back to plain text below
+
+function runningCountDigits(count) {
+  const value = Number.isFinite(Number(count)) ? Math.max(0, Math.floor(Number(count))) : 0;
+  return String(value);
+}
+
+function digitAnimationSize(count) {
+  const digitCount = runningCountDigits(count).length;
+  const width = Math.min(DIGIT_ANIMATION_MAX_SIZE, DIGIT_ANIMATION_MIN_SIZE + Math.max(0, digitCount - 1) * 4);
+  return { width, height: DIGIT_ANIMATION_HEIGHT };
+}
+
+function arcGradientOpacity(angle) {
+  const first = ARC_GRADIENT_STOPS[0];
+  const last = ARC_GRADIENT_STOPS[ARC_GRADIENT_STOPS.length - 1];
+  if (angle <= first.angle) return first.opacity;
+  if (angle >= last.angle) return last.opacity;
+  for (let index = 1; index < ARC_GRADIENT_STOPS.length; index += 1) {
+    const right = ARC_GRADIENT_STOPS[index];
+    const left = ARC_GRADIENT_STOPS[index - 1];
+    if (angle <= right.angle) {
+      const progress = (angle - left.angle) / (right.angle - left.angle);
+      return left.opacity + (right.opacity - left.opacity) * progress;
+    }
+  }
+  return 0;
+}
+
+// A single trim stroke cannot carry the CSS conic gradient's tapered tail and
+// head. Short, static-opacity strokes sample the same stops while sharing one
+// animated offset, so the whole border travels as one clockwise arc.
+const ARC_SEGMENTS = ARC_SEGMENT_BOUNDARIES.slice(0, -1).map((start, index) => {
+  const end = ARC_SEGMENT_BOUNDARIES[index + 1];
+  const opacity = arcGradientOpacity((start + end) / 2);
+  return { start, end, opacity: Number(opacity.toFixed(4)) };
+});
+
+function arcTrimPercent(degrees) {
+  return Number(((degrees / 360) * 100).toFixed(6));
+}
+
+function arcOffsetKeyframes() {
+  // Keep the baseline moving (90deg/s), and add a narrow fast sweep.
+  // Explicit positions avoid relying on player-specific easing semantics.
+  const weights = Array.from({ length: 18 }, (_, i) => Math.exp(-(((i - 8.5) / 2) ** 2)));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let angle = ARC_ANGLE_START;
+  return Array.from({ length: 19 }, (_, index) => {
+    if (index) angle += 12 + 144 * weights[index - 1] / total;
+    const frame = { t: index * 4, s: [index === 18 ? ARC_ANGLE_END : Number(angle.toFixed(6))] };
+    if (index < 18) {
+      frame.i = { x: [0.667], y: [0.667] };
+      frame.o = { x: [0.333], y: [0.333] };
+    }
+    return frame;
+  });
+}
+
+function staticDigitLayer(refId, index, digitCount) {
+  const canvasWidth = DIGIT_CANVAS_WIDTH + Math.max(0, digitCount - 1) * DIGIT_CANVAS_STEP;
+  const scale = digitCount === 1 ? 1.1 : Math.min(0.8, 1.6 / digitCount);
+  const centerX = canvasWidth / 2 + (index - (digitCount - 1) / 2) * DIGIT_LAYER_STEP * scale;
+  const centerY = DIGIT_CANVAS_HEIGHT / 2 - (DIGIT_CANVAS_HEIGHT / 2 - DIGIT_LAYER_Y) * scale;
+  return {
+    ddd: 0,
+    ind: index + 2,
+    ty: 2,
+    nm: `digit_${index}`,
+    refId,
+    sr: 1,
+    ks: {
+      o: { a: 0, k: 100 },
+      r: { a: 0, k: 0 },
+      p: { a: 0, k: [centerX, centerY, 0] },
+      a: { a: 0, k: DIGIT_ASSET_ANCHOR },
+      s: { a: 0, k: [scale * 100, scale * 100, 100] },
+    },
+    ao: 0,
+    ip: 0,
+    op: DIGIT_ANIMATION_FRAMES,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function taperedBorderGroup(canvasWidth, segment, index) {
+  const inset = 12;
+  return {
+    ty: 'gr',
+    nm: `rounded_rect_arc_${index}`,
+    it: [
+      {
+        ty: 'rc',
+        d: 1,
+        nm: 'rounded_rect',
+        p: { a: 0, k: [canvasWidth / 2, DIGIT_CANVAS_HEIGHT / 2] },
+        s: { a: 0, k: [canvasWidth - inset * 2, DIGIT_CANVAS_HEIGHT - inset * 2] },
+        r: { a: 0, k: 48 },
+      },
+      {
+        ty: 'st',
+        nm: `arc_stroke_${index}`,
+        c: { a: 0, k: RUNNING_ACCENT },
+        o: { a: 0, k: Number((segment.opacity * 100).toFixed(3)) },
+        w: { a: 0, k: 8 },
+        lc: 1, // Butt caps keep adjacent opacity samples from forming bright beads.
+        lj: 2,
+        ml: 4,
+      },
+      {
+        ty: 'tm',
+        nm: `arc_trim_${index}`,
+        s: { a: 0, k: arcTrimPercent(segment.start) },
+        e: { a: 0, k: arcTrimPercent(segment.end) },
+        o: { a: 1, k: arcOffsetKeyframes() },
+        m: 1,
+      },
+      { ty: 'tr', p: { a: 0, k: [0, 0] }, a: { a: 0, k: [0, 0] }, s: { a: 0, k: [100, 100] }, r: { a: 0, k: 0 }, o: { a: 0, k: 100 } },
+    ],
+  };
+}
+
+function orbitingBorderLayer(canvasWidth) {
+  return {
+    ddd: 0,
+    ind: 1,
+    ty: 4,
+    nm: 'orbiting_border',
+    sr: 1,
+    ks: {
+      o: { a: 0, k: 100 },
+      r: { a: 0, k: 0 },
+      p: { a: 0, k: [0, 0, 0] },
+      a: { a: 0, k: [0, 0, 0] },
+      s: { a: 0, k: [100, 100, 100] },
+    },
+    ao: 0,
+    shapes: ARC_SEGMENTS.map((segment, index) => taperedBorderGroup(canvasWidth, segment, index)),
+    ip: 0,
+    op: DIGIT_ANIMATION_FRAMES,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function digitOrbitLottie(count) {
+  const key = runningCountDigits(count);
   const cached = digitLottieCache.get(key);
   if (cached) return cached;
+
+  const digits = [...key];
+  const canvasWidth = DIGIT_CANVAS_WIDTH + Math.max(0, digits.length - 1) * DIGIT_CANVAS_STEP;
   const data = Buffer.from(JSON.stringify({
-    v: '5.7.4', fr: 30, ip: 0, op: 60, w: 120, h: 160, nm: 'digit_pulse', ddd: 0,
-    assets: [{ id: 'digit', w: 120, h: 160, u: '', p: `data:image/png;base64,${png}`, e: 1 }],
-    layers: [{
-      ddd: 0, ind: 1, ty: 2, nm: 'digit', refId: 'digit', sr: 1,
-      ks: {
-        o: { a: 1, k: [
-          { i: { x: [0.42], y: [1] }, o: { x: [0.58], y: [0] }, t: 0, s: [100] },
-          { i: { x: [0.42], y: [1] }, o: { x: [0.58], y: [0] }, t: 30, s: [60] },
-          { t: 60, s: [100] },
-        ] },
-        r: { a: 0, k: 0 },
-        p: { a: 0, k: [60, 80, 0] },
-        a: { a: 0, k: [60, 80, 0] },
-        s: { a: 1, k: [
-          { i: { x: [0.42, 0.42, 0.42], y: [1, 1, 1] }, o: { x: [0.58, 0.58, 0.58], y: [0, 0, 0] }, t: 0, s: [100, 100, 100] },
-          { i: { x: [0.42, 0.42, 0.42], y: [1, 1, 1] }, o: { x: [0.58, 0.58, 0.58], y: [0, 0, 0] }, t: 30, s: [92, 92, 100] },
-          { t: 60, s: [100, 100, 100] },
-        ] },
-      },
-      ao: 0, ip: 0, op: 60, st: 0, bm: 0,
-    }],
+    v: '5.7.4',
+    fr: DIGIT_ANIMATION_FPS,
+    ip: 0,
+    op: DIGIT_ANIMATION_FRAMES,
+    w: canvasWidth,
+    h: DIGIT_CANVAS_HEIGHT,
+    nm: 'digit_orbit',
+    ddd: 0,
+    assets: digits.map((digit, index) => ({ id: `digit-${index}`, w: DIGIT_ASSET_WIDTH, h: DIGIT_ASSET_HEIGHT, u: '', p: `data:image/png;base64,${DIGIT_PNG[digit]}`, e: 1 })),
+    layers: [
+      orbitingBorderLayer(canvasWidth),
+      ...digits.map((digit, index) => staticDigitLayer(`digit-${index}`, index, digits.length)),
+    ],
   })).toString('base64');
   digitLottieCache.set(key, data);
   return data;
@@ -87,6 +251,12 @@ const HOUR_MS = 3600e3;
 const DAY_S = 24 * 3600;
 const RECENT_SESSION_WINDOW_S = 7 * DAY_S;
 const SESSION_QUERY_LIMIT = 400;
+const START_PREVIEW_MIN_INTERVAL_MS = 10000;
+const FINISH_PREVIEW_MIN_INTERVAL_MS = 10000;
+const PREVIEW_DURATION_S = 2.5;
+const PREVIEW_MAX_CHARS = 96;
+const CONTENT_JSON_PREFIX = '\u0000json:';
+const REDACTED = '[redacted]';
 
 const nowS = () => Date.now() / 1000;
 
@@ -95,17 +265,18 @@ const nowS = () => Date.now() / 1000;
 // restart begins without a false "finished" animation for old rows.
 let previousSnapshot = null;
 let lastFinish = null;
+let lastFinishTitle = null;
 let lastFinishText = null;
 let finishPulseUntilMs = 0;
 let previousExperienceSignature = null;
-let lastPeekAtMs = 0;
+let lastStartPreviewAtMs = 0;
+let lastFinishPreviewAtMs = 0;
 let lastExperienceSentAtMs = 0;
 const FINISH_PULSE_MS = 5500;
-// A closed live activity renders glyphs, never text, so the sneak peek is the
-// only place a finish can show words. One peek per burst is enough: a run of
-// finishes must not hold the panel open, and a suppressed peek is recorded in
-// the metrics so the host log can explain missing text.
-const PEEK_MIN_INTERVAL_MS = 10000;
+// A closed live activity renders glyphs, never text, so each real transition is
+// eligible for its own compact preview. Starts and finishes use separate burst
+// windows so a completion is not hidden merely because a new turn just began.
+const PEEK_MIN_INTERVAL_MS = FINISH_PREVIEW_MIN_INTERVAL_MS;
 // Atoll accounts extension registrations per bundle in a rolling window, and the
 // dashboard tab carries volatile counters (tokens, counts, row times) that change
 // on every database write. Rewrite it on a floor; the final state still lands
@@ -150,6 +321,61 @@ function metadataLabel(value, fallback = '—') {
     .slice(0, 64);
   return clean || fallback;
 }
+
+const TEXT_PART_TYPES = new Set(['text', 'input_text', 'output_text', 'summary_text']);
+const TEXT_FIELDS = ['text', 'input_text', 'output_text', 'summary_text'];
+
+function textOnly(value) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(textOnly).filter(Boolean).join('\n');
+  if (!value || typeof value !== 'object') return '';
+  const type = String(value.type || '').trim().toLowerCase();
+  if (type && !TEXT_PART_TYPES.has(type)) return '';
+  for (const field of TEXT_FIELDS) {
+    if (typeof value[field] === 'string') return value[field];
+  }
+  if (typeof value.content === 'string') return value.content;
+  if (Array.isArray(value.content)) return textOnly(value.content);
+  return '';
+}
+
+function extractRequestText(content) {
+  if (content == null) return '';
+  const raw = Buffer.isBuffer(content) ? content.toString('utf8') : content;
+  if (typeof raw !== 'string') return '';
+  if (!raw.startsWith(CONTENT_JSON_PREFIX)) return raw;
+  try {
+    return textOnly(JSON.parse(raw.slice(CONTENT_JSON_PREFIX.length)));
+  } catch {
+    return '';
+  }
+}
+
+function redactObviousSecrets(value) {
+  let text = value;
+  text = text.replace(/-----BEGIN [^-\r\n]*PRIVATE KEY-----[\s\S]*?-----END [^-\r\n]*PRIVATE KEY-----/gi, REDACTED);
+  text = text.replace(/\bBearer\s+[A-Za-z0-9._~+\/-]{8,}=?/gi, `Bearer ${REDACTED}`);
+  text = text.replace(/\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[baprs]-[A-Za-z0-9-]{8,}|AIza[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{12,}|npm_[A-Za-z0-9]{8,})\b/g, REDACTED);
+  return text.replace(/(\b(?:api[_ -]?key|access[_ -]?token|auth(?:orization)?|token|secret|password|passwd|private[_ -]?key)\b\s*[:=]\s*)[^\s,;]+/gi, `$1${REDACTED}`);
+}
+
+function sanitizeRequest(value) {
+  let text = extractRequestText(value)
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  text = redactObviousSecrets(text).replace(/\s+/g, ' ').trim();
+  if (!text) return 'New request';
+  if (text.length > PREVIEW_MAX_CHARS) return `${text.slice(0, PREVIEW_MAX_CHARS - 1).trimEnd()}…`;
+  return text;
+}
+
+function titleForRow(row, fallbackTitle = null) {
+  const current = sessionTitle(row);
+  if (current !== 'Untitled session') return current;
+  return metadataLabel(fallbackTitle, 'Untitled session');
+}
+
 function sessionTitle(row) {
   const raw = String(row?.title || row?.display_name || '').trim();
   const id = String(row?.id || '');
@@ -263,6 +489,34 @@ function sessionRows(db) {
   ).all(cutoff, cutoff);
 }
 
+function recentUserRequests(db, sessionIds) {
+  const ids = [...new Set((sessionIds || []).map((id) => String(id || '')).filter(Boolean))];
+  if (!ids.length) return new Map();
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = db.prepare(
+      `SELECT session_id, content
+         FROM messages
+        WHERE role = 'user'
+          AND active = 1
+          AND COALESCE(_compressed_summary, 0) = 0
+          AND (display_kind IS NULL OR display_kind = '' OR display_kind = 'steer')
+          AND content IS NOT NULL
+          AND length(content) > 0
+          AND session_id IN (${placeholders})
+        ORDER BY session_id, id DESC`,
+    ).all(...ids);
+    const requests = new Map();
+    for (const row of rows) {
+      const id = String(row.session_id || '');
+      if (id && !requests.has(id)) requests.set(id, sanitizeRequest(row.content));
+    }
+    return requests;
+  } catch {
+    return new Map();
+  }
+}
+
 const TOOL_ACTION_LABELS = {
   terminal: 'Ran a command',
   read_file: 'Read a file',
@@ -328,15 +582,43 @@ function countSessionsToday(db) {
   return row ? Number(row.c) : null;
 }
 
-function finishEvent(id, kind, row = null) {
-  const at = finiteNumber(row?.ended_at) || nowS();
+function leaseKey(id, acquiredAt) {
+  return `${String(id || '')}\u0000${acquiredAt == null ? '' : String(acquiredAt)}`;
+}
+
+function finishEvent(id, kind, row = null, fallbackTitle = null, lease = null) {
+  const at = finiteNumber(row?.ended_at) || finiteNumber(lease?.acquiredAt) || nowS();
+  const acquiredAt = finiteNumber(lease?.acquiredAt);
   return {
     id: String(id || ''),
     kind,
     at,
     label: shortId(id),
+    title: titleForRow(row, fallbackTitle),
     reason: String(row?.end_reason || ''),
+    acquiredAt,
+    leaseKey: acquiredAt == null ? null : leaseKey(id, acquiredAt),
   };
+}
+
+function startEvent(id, row, lease, request, fallbackTitle = null) {
+  const acquiredAt = finiteNumber(lease?.acquiredAt);
+  return {
+    id: String(id || ''),
+    kind: 'turn',
+    at: acquiredAt == null ? nowS() : acquiredAt,
+    label: shortId(id),
+    title: titleForRow(row, fallbackTitle),
+    request: sanitizeRequest(request),
+    acquiredAt,
+    leaseKey: acquiredAt == null ? null : leaseKey(id, acquiredAt),
+  };
+}
+
+function requestForSession(requests, id) {
+  if (requests instanceof Map) return requests.get(id);
+  if (requests && typeof requests === 'object') return requests[id];
+  return null;
 }
 
 const FINISH_CONFIRM_MS = 750;
@@ -344,17 +626,19 @@ const FINISH_CONFIRM_MS = 750;
 function resetTransitionState() {
   previousSnapshot = null;
   lastFinish = null;
+  lastFinishTitle = null;
   lastFinishText = null;
   finishPulseUntilMs = 0;
   previousExperienceSignature = null;
-  lastPeekAtMs = 0;
+  lastStartPreviewAtMs = 0;
+  lastFinishPreviewAtMs = 0;
   lastExperienceSentAtMs = 0;
 }
 
-function detectTransitions(leases, rows, observedAt = nowS()) {
+function detectTransitions(leases, rows, observedAt = nowS(), requests = null) {
   const active = new Map();
   const rawLeases = new Map();
-  for (const row of leases) {
+  for (const row of Array.isArray(leases) ? leases : []) {
     const id = String(row.conversation_id || '');
     const expires = finiteNumber(row.expires_at);
     if (!id || expires == null) continue;
@@ -363,20 +647,38 @@ function detectTransitions(leases, rows, observedAt = nowS()) {
       acquiredAt: finiteNumber(row.acquired_at),
       expiresAt: expires,
     };
-    rawLeases.set(id, lease);
+    const existing = rawLeases.get(id);
+    if (!existing || (lease.acquiredAt ?? -Infinity) >= (existing.acquiredAt ?? -Infinity)) rawLeases.set(id, lease);
     if (expires > observedAt) active.set(id, lease);
   }
 
-  const byId = new Map(rows.map((row) => [String(row.id), row]));
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const byId = new Map(safeRows.map((row) => [String(row.id), row]));
+  const sessionTitles = new Map(previousSnapshot?.sessionTitles || []);
+  for (const row of safeRows) {
+    const id = String(row.id || '');
+    if (!id) continue;
+    const title = sessionTitle(row);
+    if (title !== 'Untitled session' || !sessionTitles.has(id)) sessionTitles.set(id, title);
+  }
   const openSessions = new Set(
-    rows.filter((row) => row.ended_at == null).map((row) => String(row.id)),
+    safeRows.filter((row) => row.ended_at == null).map((row) => String(row.id)),
   );
   const finished = [];
+  const started = [];
   const pendingFinishes = new Map(previousSnapshot?.pendingFinishes || []);
   const trackedLeases = new Map(active);
+  const knownLeaseKeys = new Set(previousSnapshot?.knownLeaseKeys || []);
   let nextWakeInMs = null;
 
   if (previousSnapshot) {
+    for (const [id, lease] of active) {
+      const key = leaseKey(id, lease.acquiredAt);
+      if (lease.acquiredAt != null && !knownLeaseKeys.has(key)) {
+        started.push(startEvent(id, byId.get(id), lease, requestForSession(requests, id), sessionTitles.get(id)));
+      }
+    }
+
     // A lease row whose expiry passed is not proof of completion. Keep tracking
     // a previously valid lease until its row is actually removed.
     for (const [id, lease] of previousSnapshot.trackedLeases) {
@@ -392,17 +694,17 @@ function detectTransitions(leases, rows, observedAt = nowS()) {
     for (const id of previousSnapshot.openSessions) {
       const row = byId.get(id);
       if (row && row.ended_at != null) {
-        finished.push(finishEvent(id, 'session', row));
+        finished.push(finishEvent(id, 'session', row, sessionTitles.get(id), previousSnapshot.trackedLeases.get(id)));
         active.delete(id);
         trackedLeases.delete(id);
         pendingFinishes.delete(id);
       }
     }
-    for (const row of rows) {
+    for (const row of safeRows) {
       const endedAt = finiteNumber(row.ended_at);
       const id = String(row.id || '');
       if (endedAt != null && endedAt > previousSnapshot.observedAt && !finished.some((event) => event.id === id)) {
-        finished.push(finishEvent(id, 'session', row));
+        finished.push(finishEvent(id, 'session', row, sessionTitles.get(id), previousSnapshot.trackedLeases.get(id)));
         active.delete(id);
         trackedLeases.delete(id);
         pendingFinishes.delete(id);
@@ -417,7 +719,7 @@ function detectTransitions(leases, rows, observedAt = nowS()) {
     }
     const row = byId.get(id);
     if (row && row.ended_at != null) {
-      if (!finished.some((event) => event.id === id)) finished.push(finishEvent(id, 'session', row));
+      if (!finished.some((event) => event.id === id)) finished.push(finishEvent(id, 'session', row, sessionTitles.get(id), candidate.lease));
       active.delete(id);
       trackedLeases.delete(id);
       pendingFinishes.delete(id);
@@ -425,7 +727,7 @@ function detectTransitions(leases, rows, observedAt = nowS()) {
     }
     const elapsedMs = (observedAt - candidate.firstMissingAt) * 1000;
     if (elapsedMs >= FINISH_CONFIRM_MS) {
-      if (!finished.some((event) => event.id === id)) finished.push(finishEvent(id, 'turn', row));
+      if (!finished.some((event) => event.id === id)) finished.push(finishEvent(id, 'turn', row, sessionTitles.get(id), candidate.lease));
       pendingFinishes.delete(id);
       continue;
     }
@@ -436,11 +738,14 @@ function detectTransitions(leases, rows, observedAt = nowS()) {
   }
 
   for (const [id, lease] of rawLeases) {
-    if (active.has(id) && lease.expiresAt > observedAt) trackedLeases.set(id, lease);
+    if (active.has(id) && lease.expiresAt > observedAt) {
+      trackedLeases.set(id, lease);
+      if (lease.acquiredAt != null) knownLeaseKeys.add(leaseKey(id, lease.acquiredAt));
+    }
   }
-  previousSnapshot = { trackedLeases, openSessions, pendingFinishes, observedAt };
+  previousSnapshot = { trackedLeases, openSessions, pendingFinishes, sessionTitles, knownLeaseKeys, observedAt };
   if (finished.length) lastFinish = finished[finished.length - 1];
-  return { active, byId, openSessions, finished, nextWakeInMs: Math.ceil(nextWakeInMs || 0) };
+  return { active, byId, openSessions, finished, started, nextWakeInMs: Math.ceil(nextWakeInMs || 0) };
 }
 
 // ---------- collect ----------
@@ -449,6 +754,7 @@ function collect() {
   let leases;
   let rows;
   let actionsBySession;
+  let requestsBySession;
   let sessionsToday;
   let queryFailed = false;
   try {
@@ -458,6 +764,8 @@ function collect() {
     leases = db.prepare('SELECT conversation_id, holder, acquired_at, expires_at FROM session_turn_leases').all();
     rows = sessionRows(db);
     actionsBySession = recentToolActions(db, rows);
+    const observedAt = nowS();
+    requestsBySession = recentUserRequests(db, leases.filter((lease) => finiteNumber(lease.expires_at) > observedAt).map((lease) => lease.conversation_id));
     sessionsToday = countSessionsToday(db);
     db.exec('COMMIT');
   } catch {
@@ -474,19 +782,25 @@ function collect() {
       pulse: false,
       pulseActive: false,
       finishedNow: [],
+      startedNow: [],
       active: [],
       sessions: [],
       needsActionCount: 0,
       sessionsToday,
       recentDone: null,
       lastFinish,
+      lastFinishTitle,
       lastFinishText,
       observedAt: Date.now(),
       nextWakeInMs: 0,
     };
   }
 
-  const transition = detectTransitions(leases, rows, nowS());
+  const transition = detectTransitions(leases, rows, nowS(), requestsBySession);
+  const startedNow = transition.started.filter((event) => {
+    const row = transition.byId.get(event.id);
+    return !needsActionDescription(row?.last_activity_description);
+  });
   const active = [...transition.active.values()]
     .filter((lease) => !needsActionDescription(transition.byId.get(lease.id)?.last_activity_description))
     .map((lease) => {
@@ -551,6 +865,7 @@ function collect() {
   const pulse = transition.finished.length > 0;
   if (pulse) {
     finishPulseUntilMs = Date.now() + FINISH_PULSE_MS;
+    lastFinishTitle = completionPreviewTitle(transition.finished);
     lastFinishText = finishText({ finishedNow: transition.finished });
   }
   const pulseActive = pulse || Date.now() < finishPulseUntilMs;
@@ -561,12 +876,14 @@ function collect() {
     pulse,
     pulseActive,
     finishedNow: transition.finished,
+    startedNow,
     active,
     sessions,
     needsActionCount,
     sessionsToday,
     recentDone,
     lastFinish,
+    lastFinishTitle,
     lastFinishText,
     observedAt: Date.now(),
     nextWakeInMs: transition.nextWakeInMs,
@@ -584,24 +901,69 @@ const SKIN = {
   offline: { color: createColor(0xe7 / 255, 0x5e / 255, 0x78 / 255, 1) },
 };
 
-function finishText(m) {
-  const events = Array.isArray(m.finishedNow) ? m.finishedNow : [];
-  if (!events.length) return 'Complete';
-  if (events.length === 1) {
-    const event = events[0];
-    return event.kind === 'session'
-      ? 'Session ended'
-      : 'Complete';
-  }
-  return `${events.length} complete`;
+function eventTitle(event) {
+  return metadataLabel(event?.title, 'Untitled session');
 }
 
-// Both pacing rules are pure so tests can pin them without a database or an
-// Atoll connection.
-function peekDecision({ pulse, nowMs, lastPeekAtMs }) {
-  if (!pulse) return { peek: false, suppressed: false };
-  if (nowMs - lastPeekAtMs < PEEK_MIN_INTERVAL_MS) return { peek: false, suppressed: true };
+function completionPreviewTitle(events) {
+  const list = Array.isArray(events) ? events : [];
+  const first = eventTitle(list[0]);
+  return list.length > 1 ? `${first} + ${list.length - 1} more` : first;
+}
+
+function previewCandidate(m) {
+  if (Object.prototype.hasOwnProperty.call(m, 'preview')) return m.preview;
+  const finished = Array.isArray(m.finishedNow) ? m.finishedNow : [];
+  if (m.pulse && (finished.length || m.lastFinishTitle)) {
+    return { kind: 'finish', title: m.lastFinishTitle || completionPreviewTitle(finished), subtitle: 'Complete' };
+  }
+  const started = Array.isArray(m.startedNow) ? m.startedNow : [];
+  if (started.length && m.startPreview === true) {
+    const first = started[0];
+    return { kind: 'start', title: eventTitle(first), subtitle: sanitizeRequest(first.request) };
+  }
+  if (m.pulseActive && m.lastFinishTitle) {
+    return { kind: 'finish', title: m.lastFinishTitle, subtitle: 'Complete' };
+  }
+  return null;
+}
+
+function previewEnabledFor(m, candidate) {
+  if (!candidate) return false;
+  if (Object.prototype.hasOwnProperty.call(m, 'previewEnabled')) return m.previewEnabled === true;
+  if (Object.prototype.hasOwnProperty.call(m, 'preview')) {
+    return m.suppressPeek !== true && m.suppressStartPreview !== true;
+  }
+  if (candidate.kind === 'finish') return m.pulse === true && m.suppressPeek !== true;
+  return m.startPreview === true && m.suppressStartPreview !== true;
+}
+
+function finishText() {
+  return 'Complete';
+}
+
+function hasPreviewEvent(value) {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value);
+}
+
+function transitionPreviewDecision(hasEvent, nowMs, lastAtMs, intervalMs) {
+  if (!hasEvent) return { peek: false, suppressed: false };
+  if (nowMs - lastAtMs < intervalMs) return { peek: false, suppressed: true };
   return { peek: true, suppressed: false };
+}
+
+function startPreviewDecision({ started, nowMs, lastStartAtMs = 0 }) {
+  return transitionPreviewDecision(hasPreviewEvent(started), nowMs, lastStartAtMs, START_PREVIEW_MIN_INTERVAL_MS);
+}
+
+function finishPreviewDecision({ finished, nowMs, lastFinishAtMs = 0 }) {
+  return transitionPreviewDecision(hasPreviewEvent(finished), nowMs, lastFinishAtMs, FINISH_PREVIEW_MIN_INTERVAL_MS);
+}
+
+// Backward-compatible name for the finish-only pacing test and callers that
+// predate separate start/finish preview windows.
+function peekDecision({ pulse, nowMs, lastPeekAtMs }) {
+  return finishPreviewDecision({ finished: pulse, nowMs, lastFinishAtMs: lastPeekAtMs });
 }
 
 function experienceSendDecision({ changed, forcePresent, nowMs, lastSentAtMs }) {
@@ -630,10 +992,12 @@ function shouldRenderActivity(m, plan) {
 }
 function liveActivity(m) {
   const skin = SKIN[m.state] || SKIN.offline;
-  // A closed notch renders glyphs only, so the peek is the single place the
-  // completion text can appear; ask for it on a finish pulse and never on a
-  // plain update.
-  const peekEnabled = m.pulse === true && m.suppressPeek !== true;
+  const preview = previewCandidate(m);
+  const previewEnabled = previewEnabledFor(m, preview);
+  const previewTitle = preview ? eventTitle(preview) : null;
+  const previewSubtitle = preview?.kind === 'start'
+    ? sanitizeRequest(preview.subtitle ?? preview.request)
+    : preview?.kind === 'finish' ? 'Complete' : null;
   const openCount = (m.sessions || []).filter((session) => session.status !== 'ended').length;
   const runningCount = (m.sessions || []).filter((session) => session.turnActive && !session.needsAction).length;
   const needsActionCount = (m.sessions || []).filter((session) => session.needsAction || session.status === 'needs-action').length;
@@ -654,19 +1018,15 @@ function liveActivity(m) {
     title: 'Hermes',
     subtitle,
     leadingIcon: { type: 'image', data: wingIcon(), size: { width: 26, height: 26 }, cornerRadius: 0 },
-    // Right side of the notch: how many turns are running, and the count itself
-    // pulses as the live state animation. badgeIcon is OMITTED entirely (not
-    // {type:'none'}): an explicit none still made Atoll draw its fallback
-    // placeholder plate ("app.dashed" outline + tint chip) next to the icon.
+    // Right side of the notch: how many turns are running. The digit is static;
+    // the border in its embedded lottie carries the only motion. badgeIcon is
+    // OMITTED entirely (not {type:'none'}): an explicit none still made Atoll
+    // draw its fallback placeholder plate ("app.dashed" outline + tint chip)
+    // next to the icon.
     trailingContent: needsActionCount > 0
       ? { type: 'text', text: '!', font: systemFont(14, 'bold'), color: createColor(1, 0xc2 / 255, 0x62 / 255, 1) }
       : runningCount > 0
-        ? (digitPulseLottie(runningCount)
-          // The animation box is capped at 10pt so Atoll's trailing floor (26pt, same
-          // as the music wing) applies - the closed notch then matches the music
-          // width exactly in both the standalone and the paired state.
-          ? { type: 'animation', data: digitPulseLottie(runningCount), size: { width: 10, height: 16 } }
-          : { type: 'text', text: String(runningCount), font: systemFont(13, 'semibold'), color: createColor(121 / 255, 160 / 255, 193 / 255, 1) })
+        ? { type: 'animation', data: digitOrbitLottie(runningCount), size: digitAnimationSize(runningCount) }
         // Zero keeps a dim digit instead of an empty slot: the count has to land
         // on 0 visibly before the wing retracts, otherwise the number looks
         // frozen at the last value and then disappears.
@@ -686,13 +1046,15 @@ function liveActivity(m) {
       source: 'local-state-db',
     },
     sneakPeekConfig: {
-      enabled: peekEnabled,
-      // Atoll replaces an already-presented id in place, so a finish that arrives
-      // as an update still has to be allowed to animate.
-      showOnUpdate: peekEnabled,
+      enabled: previewEnabled,
+      duration: PREVIEW_DURATION_S,
+      style: 'inline',
+      // Atoll does not animate a sneak peek for native updates. The resource
+      // reconciler re-presents this stable id for an explicit preview trigger.
+      showOnUpdate: previewEnabled,
     },
-    sneakPeekTitle: 'Hermes',
-    sneakPeekSubtitle: m.pulse ? finishText(m) : null,
+    sneakPeekTitle: previewTitle,
+    sneakPeekSubtitle: previewSubtitle,
   });
 }
 
@@ -1041,9 +1403,37 @@ function build({ forcePresent = false } = {}) {
     previousExperienceSignature = signature;
     lastExperienceSentAtMs = nowMs;
   }
-  const peek = peekDecision({ pulse: metrics.pulse, nowMs, lastPeekAtMs });
-  if (peek.peek) lastPeekAtMs = nowMs;
-  else if (peek.suppressed) metrics.suppressPeek = true;
+  const startDecision = startPreviewDecision({
+    started: metrics.startedNow,
+    nowMs,
+    lastStartAtMs: lastStartPreviewAtMs,
+  });
+  const finishDecision = finishPreviewDecision({
+    finished: metrics.finishedNow,
+    nowMs,
+    lastFinishAtMs: lastFinishPreviewAtMs,
+  });
+  if (startDecision.peek) lastStartPreviewAtMs = nowMs;
+  if (finishDecision.peek) lastFinishPreviewAtMs = nowMs;
+  metrics.suppressStartPreview = startDecision.suppressed;
+  metrics.suppressFinishPreview = finishDecision.suppressed;
+  metrics.suppressPeek = finishDecision.suppressed;
+  const finishCandidate = metrics.finishedNow.length || metrics.lastFinishTitle
+    ? { kind: 'finish', title: metrics.lastFinishTitle || completionPreviewTitle(metrics.finishedNow), subtitle: 'Complete' }
+    : null;
+  const firstStart = metrics.startedNow[0];
+  const startCandidate = firstStart
+    ? { kind: 'start', title: eventTitle(firstStart), subtitle: sanitizeRequest(firstStart.request) }
+    : null;
+  const preview = finishDecision.peek && finishCandidate
+    ? finishCandidate
+    : startDecision.peek && startCandidate
+      ? startCandidate
+      : finishCandidate || startCandidate;
+  metrics.preview = preview;
+  metrics.previewEnabled = Boolean(
+    (finishDecision.peek && finishCandidate) || (startDecision.peek && startCandidate),
+  );
   return {
     liveActivity: shouldRenderActivity(metrics, plan) ? liveActivity(metrics) : null,
     experiences: sendExperience ? [tab(metrics)] : [],
@@ -1051,7 +1441,10 @@ function build({ forcePresent = false } = {}) {
       activities: plan.keepActivity ? [ACTIVITY_ID] : [],
       experiences: plan.keepExperience ? [EXPERIENCE_ID] : [],
     },
+    // pulse remains the finish lifecycle/grace signal. preview is the explicit
+    // native re-present trigger and also covers a real new turn.
     pulse: plan.keepActivity && plan.pulse,
+    preview: plan.keepActivity && metrics.previewEnabled,
     pulseDurationMs: plan.pulse ? FINISH_PULSE_MS : 0,
     nextWakeInMs: Math.max(metrics.nextWakeInMs || 0, experiencePlan.deferredInMs),
     _metrics: metrics,
@@ -1072,8 +1465,20 @@ module.exports = {
   debug: collect,
   _detectTransitions: detectTransitions,
   _resetTransitions: resetTransitionState,
-  _render: { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup, toolActionLabel },
-  _pacing: { FINISH_PULSE_MS, PEEK_MIN_INTERVAL_MS, EXPERIENCE_MIN_INTERVAL_MS, peekDecision, experienceSendDecision },
+  _render: { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup, toolActionLabel, completionPreviewTitle },
+  _preview: { extractRequestText, sanitizeRequest, recentUserRequests },
+  _pacing: {
+    FINISH_PULSE_MS,
+    PEEK_MIN_INTERVAL_MS,
+    START_PREVIEW_MIN_INTERVAL_MS,
+    FINISH_PREVIEW_MIN_INTERVAL_MS,
+    PREVIEW_DURATION_S,
+    EXPERIENCE_MIN_INTERVAL_MS,
+    peekDecision,
+    startPreviewDecision,
+    finishPreviewDecision,
+    experienceSendDecision,
+  },
   _watch: { watchStateDb },
 };
 

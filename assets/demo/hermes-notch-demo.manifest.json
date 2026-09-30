@@ -1,0 +1,14 @@
+{
+  "source": "synthetic-debug-demo",
+  "phase": "running-1",
+  "capture": "CuaDriver get_desktop_state; frames sampled as fast as native capture allowed",
+  "frameCount": 30,
+  "captureSpanSeconds": 12.661,
+  "medianIntervalMs": 427.0,
+  "gifDurationSeconds": 13.1,
+  "dimensions": "570x86",
+  "rawFramesPublished": false,
+  "timing": "GIF frame durations preserve measured native capture cadence; no speed-up",
+  "output": "hermes-notch-demo.gif",
+  "reproduce": "node tools/record-demo-gif.js --socket <current-cua-driver-socket> --phase running-1 --seconds 3 --fps 10"
+}
