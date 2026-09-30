@@ -39,8 +39,20 @@ node tools/demo-effects.js all --seconds 6 \
   --capture-dir "$HOME/.hermes/cache/scratch/atoll-effect-demo" \
   --socket "$CUDRIVER_SOCKET"
 node tools/record-demo-gif.js --socket "$CUDRIVER_SOCKET"
-node tools/capture-expanded-demo.js --socket "$CUDRIVER_SOCKET"
+
+# Resolve the exact Atoll pid/window and inspect its live AX labels first.
+# The expanded capture never accepts screen coordinates.
+cua-driver call list_windows --socket "$CUDRIVER_SOCKET" --json '{}'
+cua-driver call get_window_state --socket "$CUDRIVER_SOCKET" --json \
+  '{"pid":'$ATOLL_PID',"window_id":'$ATOLL_WINDOW_ID',"include_screenshot":false}'
+node tools/capture-expanded-demo.js \
+  --socket "$CUDRIVER_SOCKET" \
+  --pid "$ATOLL_PID" \
+  --window-id "$ATOLL_WINDOW_ID" \
+  --tab-label "$ATOLL_TAB_AX_LABEL"
 ```
+
+`--tab-label` must be the exact actionable AX label from that fresh `get_window_state` response. Selection uses CuaDriver's background AX path, not the real pointer, focus, browser, hotkeys, or permissions. If the correct Hermes tab is already expanded, omit `--tab-label`; the script asserts the synthetic session labels in the background and captures only after that assertion. If the exact window or AX state cannot be verified, it fails closed without producing a screenshot; open the correct tab yourself and retry. The expanded manifest records the asserted pid/window, selection route, and labels.
 
 ## Requirements
 

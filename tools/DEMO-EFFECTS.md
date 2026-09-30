@@ -14,7 +14,7 @@ node tools/demo-effects.js hidden --seconds 6
 node tools/demo-effects.js all --dry-run
 ```
 
-The fixtures are synthetic and display-only. They never read or write Hermes session data. The command pauses an existing plugin host, dismisses its own monitor activity, shows a separate `hermes.monitor.debug-demo` activity, removes that demo, then restores the host in `finally`. Normal completion and caught errors restore monitoring. Force-killing the process bypasses cleanup; if necessary, dismiss the demo with the same SDK identity and relaunch `host.js`. Do not run concurrent demos. Each capture is cropped to the native notch only; expanded-panel behavior is captured separately by `tools/capture-expanded-demo.js`.
+The fixtures are synthetic and display-only. They never read or write Hermes session data. The command pauses an existing plugin host, dismisses its own monitor activity, shows a separate `hermes.monitor.debug-demo` activity, removes that demo, then restores the host in `finally`. Normal completion and caught errors restore monitoring. Force-killing the process bypasses cleanup; if necessary, dismiss the demo with the same SDK identity and relaunch `host.js`. Do not run concurrent demos. Each capture is cropped to the native notch only; menu-bar and desktop content are discarded. Expanded-panel behavior is captured separately by `tools/capture-expanded-demo.js`, which uses only background AX selection or a user-already-open panel and refuses coordinate/pointer replay.
 
 ## Screenshot mode
 
