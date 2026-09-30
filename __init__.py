@@ -8,9 +8,34 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+PRODUCT_NAME = "Hermes Notch Plugin"
+
+try:
+    from .notch_setup import (
+        PRODUCT_NAME,
+        SetupError,
+        add_setup_arguments,
+        build_setup_plan,
+        execute_setup,
+        print_runtime_status,
+    )
+except ImportError:  # The repository smoke test loads this file directly.
+    _PLUGIN_PATH = str(Path(__file__).resolve().parent)
+    if _PLUGIN_PATH not in sys.path:
+        sys.path.insert(0, _PLUGIN_PATH)
+    from notch_setup import (  # type: ignore[no-redef]
+        PRODUCT_NAME,
+        SetupError,
+        add_setup_arguments,
+        build_setup_plan,
+        execute_setup,
+        print_runtime_status,
+    )
 
 MIN_NODE = (22, 5, 0)
 
@@ -84,17 +109,17 @@ def _start_monitor() -> int:
     pid_file = _pid_file()
     existing = _read_pid()
     if existing and _pid_alive(existing) and _is_monitor_pid(existing):
-        print(f"Hermes Atoll monitor is already running (pid {existing}).")
+        print(f"{PRODUCT_NAME} monitor is already running (pid {existing}).")
         return 0
 
     node = _node_binary()
     if not node or not _node_version_ok(node):
-        print("Hermes Atoll needs Node.js 22.5 or newer. Install it, then run `hermes atoll start`.")
+        print(f"{PRODUCT_NAME} needs Node.js 22.5 or newer. Install it, then run `hermes notch start`.")
         return 1
 
     package = _plugin_dir() / "node_modules" / "@ebullioscopic" / "atoll-js"
     if not package.is_dir():
-        print("Atoll's Node package is missing. Reinstall with `hermes plugins install himanusia/hermes-atoll-plugin` and accept the Node dependency prompt.")
+        print("Atoll's Node package is missing. Reinstall with `hermes plugins install himanusia/hermes-notch-plugin --enable` and accept the Node dependency prompt.")
         return 1
 
     run_dir = pid_file.parent
@@ -124,20 +149,20 @@ def _start_monitor() -> int:
                 env=env,
             )
     except OSError as exc:
-        print(f"Could not start Hermes Atoll monitor: {exc}")
+        print(f"Could not start {PRODUCT_NAME} monitor: {exc}")
         return 1
 
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            print(f"Hermes Atoll monitor exited during startup; see {log_path}.")
+            print(f"{PRODUCT_NAME} monitor exited during startup; see {log_path}.")
             return 1
         pid = _read_pid()
         if pid == process.pid:
-            print(f"Started Hermes Atoll monitor (pid {pid}).")
+            print(f"Started {PRODUCT_NAME} monitor (pid {pid}).")
             return 0
         time.sleep(0.05)
-    print(f"Monitor launch requested; check status with `hermes atoll status` and logs at {log_path}.")
+    print(f"Monitor launch requested; check status with `hermes notch status` and logs at {log_path}.")
     return 0
 
 
@@ -149,12 +174,12 @@ def _stop_monitor() -> int:
             pid_file.unlink()
         except OSError:
             pass
-        print("Hermes Atoll monitor is not running.")
+        print(f"{PRODUCT_NAME} monitor is not running.")
         return 0
     try:
         os.kill(pid, signal.SIGTERM)
     except OSError as exc:
-        print(f"Could not stop Hermes Atoll monitor (pid {pid}): {exc}")
+        print(f"Could not stop {PRODUCT_NAME} monitor (pid {pid}): {exc}")
         return 1
     deadline = time.monotonic() + 4
     while time.monotonic() < deadline and _pid_alive(pid):
@@ -162,21 +187,24 @@ def _stop_monitor() -> int:
     if _pid_alive(pid):
         print(f"Monitor (pid {pid}) did not stop; inspect {pid_file}.")
         return 1
-    print("Stopped Hermes Atoll monitor.")
+    print(f"Stopped {PRODUCT_NAME} monitor.")
     return 0
 
 
 def _status_monitor() -> int:
     pid = _read_pid()
     if pid and _pid_alive(pid) and _is_monitor_pid(pid):
-        print(f"Hermes Atoll monitor is running (pid {pid}).")
+        print(f"{PRODUCT_NAME} monitor is running (pid {pid}).")
     else:
-        print("Hermes Atoll monitor is stopped. It starts automatically at the next Hermes session.")
+        print(f"{PRODUCT_NAME} monitor is stopped. It starts automatically at the next Hermes session.")
+    print_runtime_status()
     return 0
 
 
 def _setup_cli(parser: argparse.ArgumentParser) -> None:
     commands = parser.add_subparsers(dest="atoll_action")
+    setup = commands.add_parser("setup", help="Install the himanusia/Atoll fork without replacing an existing app")
+    add_setup_arguments(setup)
     commands.add_parser("status", help="Show whether the monitor is running")
     commands.add_parser("start", help="Start the monitor now")
     commands.add_parser("stop", help="Stop the monitor until the next Hermes session")
@@ -186,6 +214,19 @@ def _setup_cli(parser: argparse.ArgumentParser) -> None:
 
 def _dispatch_cli(args: argparse.Namespace) -> int:
     action = getattr(args, "atoll_action", None) or "status"
+    if action == "setup":
+        try:
+            plan = build_setup_plan(
+                hermes_home_path=_hermes_home(),
+                ref=args.atoll_ref,
+                source_dir=args.source_dir,
+                derived_data_dir=args.derived_data_dir,
+                install_path=args.install_path,
+            )
+            return execute_setup(plan, dry_run=bool(args.dry_run))
+        except SetupError as exc:
+            print(f"{PRODUCT_NAME} setup failed: {exc}")
+            return 1
     if action == "start":
         return _start_monitor()
     if action == "stop":
@@ -203,14 +244,25 @@ def _on_session_start(**_kwargs: Any) -> None:
 
 
 def register(ctx: Any) -> None:
-    """Register the Hermes session hook and ``hermes atoll`` controls."""
+    """Register the session hook and the ``hermes notch`` controls.
+
+    ``hermes atoll`` remains a command alias because its canonical plugin id
+    and existing user's monitor controls are intentionally not migrated.
+    """
     ctx.register_hook("on_session_start", _on_session_start)
     ctx.register_cli_command(
-        name="atoll",
-        help="Control the Hermes Atoll notch monitor",
+        name="notch",
+        help="Set up and control the Hermes Notch Plugin",
         setup_fn=_setup_cli,
         handler_fn=_dispatch_cli,
-        description="Start, stop, or inspect the Hermes status monitor for Atoll.",
+        description="Install the maintained Atoll fork, then start, stop, or inspect the Hermes notch monitor.",
+    )
+    ctx.register_cli_command(
+        name="atoll",
+        help="Legacy alias for Hermes Notch Plugin controls",
+        setup_fn=_setup_cli,
+        handler_fn=_dispatch_cli,
+        description="Compatibility alias for `hermes notch`; the runtime plugin id remains hermes-atoll.",
     )
 
 

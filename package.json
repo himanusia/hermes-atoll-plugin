@@ -1,8 +1,15 @@
 {
-  "name": "hermes-atoll-sidecar",
-  "version": "0.2.0",
-  "description": "Node sidecar for the Hermes Agent Atoll plugin on macOS",
+  "name": "hermes-notch-plugin-sidecar",
+  "version": "0.3.0",
+  "description": "Node sidecar for the Hermes Notch Plugin and Atoll on macOS",
   "private": true,
+  "author": "Hima N.",
+  "homepage": "https://github.com/himanusia/hermes-notch-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/himanusia/hermes-notch-plugin.git"
+  },
+  "license": "ISC",
   "scripts": {
     "test": "node tools/test-rendering.js && node tools/test-transitions.js && node tools/test-host-lifecycle.js && node tools/test-state-watch.js && node tools/test-pacing.js && node tools/test-capture-expanded-demo.js"
   },

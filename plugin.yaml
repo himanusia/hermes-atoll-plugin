@@ -1,13 +1,14 @@
+# Stable runtime identity: existing users keep their enabled plugin state.
 name: hermes-atoll
-version: "0.2.0"
+version: "0.3.0"
 manifest_version: 2
 description: >
-  Native Hermes Agent plugin that runs the local Atoll notch monitor for Hermes
-  session and turn status on macOS.
+  Hermes Notch Plugin: a native Hermes Agent integration that installs and runs
+  the local Atoll fork monitor for Hermes session and turn status on macOS.
 kind: standalone
 author: Hima N.
 license: ISC
-homepage: https://github.com/himanusia/hermes-atoll-plugin
+homepage: https://github.com/himanusia/hermes-notch-plugin
 tags:
   - atoll
   - macos
