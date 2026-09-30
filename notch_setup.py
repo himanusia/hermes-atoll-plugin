@@ -23,8 +23,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 PRODUCT_NAME = "Hermes Notch Plugin"
 ATOLL_REPO_URL = "https://github.com/himanusia/Atoll.git"
 ATOLL_REPO_CANONICAL = "github.com/himanusia/atoll"
-# The native fork's branch carrying the extension peek/open-panel work.
-ATOLL_REF = "fix/extension-peek-open-panel"
+# Immutable fork commit carrying the extension peek/open-panel work.
+ATOLL_REF = "35859170a644665520948ec4212ee3e37a14c62b"
 ATOLL_PROJECT = "DynamicIsland.xcodeproj"
 ATOLL_SCHEME = "DynamicIsland"
 ATOLL_APP_NAME = "Atoll.app"

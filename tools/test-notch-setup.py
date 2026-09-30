@@ -20,7 +20,7 @@ import notch_setup as setup  # noqa: E402
 
 
 class NotchSetupTests(unittest.TestCase):
-    def test_default_plan_selects_himanusia_fork_and_pinned_ref(self):
+    def test_default_plan_selects_himanusia_fork_and_immutable_ref(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             plan = setup.build_setup_plan(
@@ -29,12 +29,17 @@ class NotchSetupTests(unittest.TestCase):
                 app_paths=[],
                 rpc_probe=lambda: False,
             )
-            clone = plan.commands[0]
+            clone, fetch, checkout, build = plan.commands
+            self.assertEqual(setup.ATOLL_REF, "35859170a644665520948ec4212ee3e37a14c62b")
             self.assertEqual(plan.source_url, setup.ATOLL_REPO_URL)
             self.assertIn(setup.ATOLL_REPO_URL, clone)
-            self.assertIn(setup.ATOLL_REF, clone)
+            self.assertIn("--no-checkout", clone)
+            self.assertEqual(fetch[-2:], ("origin", setup.ATOLL_REF))
+            self.assertEqual(checkout[-2:], ("--detach", setup.ATOLL_REF))
+            self.assertEqual(build[0], "xcodebuild")
+            self.assertEqual(build[build.index("-project") + 1], str(plan.source_dir / "DynamicIsland.xcodeproj"))
+            self.assertEqual(build[build.index("-derivedDataPath") + 1], str(plan.derived_data_dir))
             self.assertEqual(plan.candidate_path.name, "Atoll.app")
-            self.assertIn("DynamicIsland.xcodeproj", " ".join(plan.commands[1]))
             self.assertNotIn("Ebullioscopic/Atoll", " ".join(clone))
 
     def test_upstream_or_other_remote_is_rejected(self):
