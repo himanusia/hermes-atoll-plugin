@@ -1,0 +1,9 @@
+[
+  {"phase":"start","source":"synthetic-debug-demo","screenshot":"notch-start.png"},
+  {"phase":"running-1","source":"synthetic-debug-demo","screenshot":"notch-running-1.png"},
+  {"phase":"running-12","source":"synthetic-debug-demo","screenshot":"notch-running-12.png"},
+  {"phase":"needs-action","source":"synthetic-debug-demo","screenshot":"notch-needs-action.png"},
+  {"phase":"complete","source":"synthetic-debug-demo","screenshot":"notch-complete.png"},
+  {"phase":"idle","source":"synthetic-debug-demo","screenshot":"notch-idle.png"},
+  {"phase":"hidden","source":"synthetic-debug-demo","screenshot":"notch-hidden.png"}
+]

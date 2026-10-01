@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Hermes Atoll host — loads the monitor and drives it into Atoll.
+ * Hermes Notch Plugin host — loads the monitor and drives it into Atoll.
  *
  *   node host.js          stay alive, refresh each plugin on its own interval
  *   node host.js --once   one refresh cycle after connect, then exit (diagnostics)
@@ -60,7 +60,7 @@ function acquireInstanceLock() {
 }
 
 if (!ONCE && !acquireInstanceLock()) {
-  log('Hermes Atoll monitor already running; duplicate launch ignored');
+  log('Hermes Notch Plugin monitor already running; duplicate launch ignored');
   process.exit(0);
 }
 

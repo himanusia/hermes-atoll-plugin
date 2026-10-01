@@ -30,10 +30,11 @@ def main() -> None:
     context = RecordingContext()
     PLUGIN.register(context)
     assert [name for name, _callback in context.hooks] == ["on_session_start"]
-    assert [command["name"] for command in context.commands] == ["atoll"]
+    assert [command["name"] for command in context.commands] == ["notch", "atoll"]
 
     parser = argparse.ArgumentParser()
     context.commands[0]["setup_fn"](parser)
+    assert parser.parse_args(["setup", "--dry-run"]).atoll_action == "setup"
     assert parser.parse_args(["status"]).atoll_action == "status"
     assert parser.parse_args(["stop"]).atoll_action == "stop"
     assert parser.parse_args(["restart"]).atoll_action == "restart"

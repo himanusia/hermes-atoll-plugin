@@ -16,9 +16,14 @@ tools/*
 !tools/test-host-lifecycle.js
 !tools/test-pacing.js
 !tools/test-plugin-entrypoint.py
+!tools/test-notch-setup.py
 !tools/test-rendering.js
 !tools/test-state-watch.js
 !tools/test-transitions.js
+!tools/demo-effects.js
+!tools/DEMO-EFFECTS.md
+!tools/record-demo-gif.js
+!tools/capture-expanded-demo.js
 tools/probe-*.js
 tools/diag-*.js
 tools/*-probe.js

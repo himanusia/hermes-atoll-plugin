@@ -9,7 +9,8 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const zlib = require('node:zlib');
 const monitor = require('../plugins/hermes-monitor.js');
-const { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup } = monitor._render;
+const { liveActivity, tab, experienceSignature, surfacePlan, needsActionDescription, shouldRenderActivity, sessionDeepLink, chronologicalRecentActions, formatWibTime, sessionArcMarkup, completionPreviewTitle } = monitor._render;
+const { PREVIEW_DURATION_S } = monitor._pacing;
 const now = Date.now() / 1000;
 
 assert.deepEqual(
@@ -70,12 +71,99 @@ assert.deepEqual(activity.leadingIcon.size, { width: 26, height: 26 });
 assert.equal(activity.leadingIcon.cornerRadius, 0);
 assert.equal(activity.badgeIcon, undefined);
 assert.equal(activity.trailingContent.type, 'animation');
-assert.ok(activity.trailingContent.data.length > 300, 'digit pulse lottie is embedded');
-assert.deepEqual(activity.trailingContent.size, { width: 10, height: 16 });
+assert.ok(activity.trailingContent.data.length > 300, 'digit orbit lottie is embedded');
+assert.deepEqual(activity.trailingContent.size, { width: 26, height: 26 }, 'a single digit gets a padded square descriptor box');
+assert.ok(activity.trailingContent.size.width >= 22 && activity.trailingContent.size.width <= 26, 'the count box stays within the 22-26pt range');
+assert.ok(activity.trailingContent.size.height >= 22 && activity.trailingContent.size.height <= 26, 'the count box height stays within the 22-26pt range');
+assert.deepEqual(activity.leadingIcon.size, { width: 26, height: 26 }, 'the wing stays at the 26pt floor');
 const digitLottie = JSON.parse(Buffer.from(activity.trailingContent.data, 'base64').toString('utf8'));
+assert.deepEqual({ width: digitLottie.w, height: digitLottie.h }, { width: 220, height: 220 }, 'the one-digit lottie has room for a padded border');
 assert.ok(digitLottie.assets[0].p.startsWith('data:image/png;base64,'), 'digit png rides inside the lottie');
+assert.deepEqual({ width: digitLottie.assets[0].w, height: digitLottie.assets[0].h }, { width: 120, height: 160 }, 'the original digit asset dimensions stay unchanged');
+const digitLayers = digitLottie.layers.filter((layer) => layer.ty === 2);
+assert.equal(digitLayers.length, 1, 'one running digit uses one embedded image layer');
+for (const layer of digitLayers) {
+  assert.equal(layer.ks.o.a, 0, 'the digit opacity is static');
+  assert.equal(layer.ks.o.k, 100, 'the digit stays opaque');
+  assert.equal(layer.ks.s.a, 0, 'the digit scale is static');
+  assert.deepEqual(layer.ks.s.k, [110.00000000000001, 110.00000000000001, 100], 'the single digit is larger but stays at a fixed scale');
+  assert.equal(layer.ks.p.k[0], 110);
+  assert.ok(Math.abs(layer.ks.p.k[1] - 79.2) < 0.001, 'the enlarged digit keeps its visible glyph centered');
+  assert.deepEqual(layer.ks.a.k, [60, 80, 0], 'the digit keeps its original asset anchor');
+}
+const borderLayer = digitLottie.layers.find((layer) => layer.nm === 'orbiting_border');
+assert.ok(borderLayer, 'the lottie has an orbiting border shape layer');
+const borderGroups = borderLayer.shapes.filter((shape) => shape.ty === 'gr');
+assert.equal(borderGroups.length, 91, 'the border is built from tapered trim-stroke segments, not one uniform spinner');
+const borderSegments = borderGroups.map((group) => ({
+  rect: group.it.find((shape) => shape.ty === 'rc'),
+  stroke: group.it.find((shape) => shape.ty === 'st'),
+  trim: group.it.find((shape) => shape.ty === 'tm'),
+}));
+assert.ok(borderSegments.every(({ rect, stroke, trim }) => rect && stroke && trim), 'each gradient segment has a rounded rect, stroke, and trim path');
+const arcRanges = borderSegments.map(({ trim }) => [trim.s.k * 3.6, trim.e.k * 3.6]);
+assert.ok(Math.abs(arcRanges[0][0] - 90) < 0.00001 && Math.abs(arcRanges.at(-1)[1] - 360) < 0.00001);
+assert.ok(arcRanges.every(([start, end], i) => end > start && end - start <= 3.00001 && (!i || Math.abs(start - arcRanges[i-1][1]) < 0.00001)), 'fine samples form a contiguous long arc');
+assert.ok(borderSegments.every(({stroke}) => stroke.lc === 1), 'gradient samples have no overlapping round-cap beads');
+const segmentOpacities = borderSegments.map(({ stroke }) => stroke.o.k);
+assert.ok(segmentOpacities[0] < segmentOpacities[1] && segmentOpacities[1] < segmentOpacities[2], 'the tail fades in');
+const peak = segmentOpacities.indexOf(Math.max(...segmentOpacities));
+assert.ok(peak > 0 && peak < segmentOpacities.length - 1 && segmentOpacities[peak-1] < segmentOpacities[peak] && segmentOpacities[peak+1] < segmentOpacities[peak], 'the head fades smoothly on both sides');
+assert.ok(segmentOpacities.slice(1).every((opacity,i) => Math.abs(opacity-segmentOpacities[i]) <= 5.01), 'adjacent gradient samples differ by at most five opacity points');
+assert.equal(Math.max(...segmentOpacities), 100, 'the middle of the arc reaches the accent');
+assert.ok(segmentOpacities[0] < 10 && segmentOpacities.at(-1) < 10, 'both arc ends are nearly transparent');
+const borderRect = borderSegments[0].rect;
+const borderStroke = borderSegments[0].stroke;
+assert.deepEqual(borderRect.p.k, [110, 110], 'the rounded border is centered');
+assert.deepEqual(borderRect.s.k, [196, 196], 'the border has an inset perimeter');
+assert.equal(borderRect.r.k, 48, 'the border keeps rounded corners');
+assert.equal(borderStroke.w.k, 8, 'the larger box keeps a fine stroke instead of a heavy outline');
+assert.equal((digitLottie.w - borderRect.s.k[0]) / 2 - borderStroke.w.k / 2, 8, 'the border has geometric outer padding');
+const trimPath = borderSegments[0].trim;
+assert.equal(digitLottie.fr, 30, 'the orbit uses a 30fps timeline');
+assert.equal(digitLottie.op, 72, 'the orbit lasts 2.4 seconds');
+assert.equal((digitLottie.op / digitLottie.fr) * 1000, 2400, 'the Lottie period is exactly 2.4 seconds');
+assert.equal(trimPath.o.a, 1, 'the trim offset animates');
+assert.equal(trimPath.o.k.length, 19, 'speed is encoded explicitly in 18 motion intervals');
+assert.deepEqual([trimPath.o.k[0].t, trimPath.o.k[0].s[0], trimPath.o.k.at(-1).t, trimPath.o.k.at(-1).s[0]], [0,135,72,495]);
+assert.equal(495 - 135, 360, 'the border makes one clockwise revolution per period');
+assert.deepEqual(trimPath.o.k[0].i, { x: [0.667], y: [0.667] });
+assert.deepEqual(trimPath.o.k[0].o, { x: [0.333], y: [0.333] });
+assert.ok(borderSegments.every(({ trim }) => JSON.stringify(trim.o.k) === JSON.stringify(trimPath.o.k)), 'all tapered segments share the same phase and direction');
+const speedWindows = trimPath.o.k.slice(1).map((k, i) => k.s[0] - trimPath.o.k[i].s[0]);
+assert.ok(speedWindows.every((delta) => delta > 0), 'the border never reverses or freezes');
+assert.ok(Math.min(...speedWindows) >= 11.99999, 'minimum speed stays at least 90 degrees/second');
+assert.ok(Math.max(...speedWindows) > 45, 'peak speed exceeds 337 degrees/second');
+assert.ok(Math.abs(speedWindows[0] - speedWindows.at(-1)) < 0.00001, 'loop seam has matching speed');
+assert.ok(Math.max(...speedWindows) > Math.min(...speedWindows) * 3, 'speed variation is pronounced, not merely technically non-linear');
+
 const twoRunning = { ...metrics, active: [sessions[0], sessions[1]], sessions: [sessions[0], { ...sessions[1], turnActive: true }, sessions[2]] };
 assert.notEqual(liveActivity(twoRunning).trailingContent.data, activity.trailingContent.data, 'digit follows the count');
+const multiSessions = Array.from({ length: 12 }, (_, index) => session({
+  id: `session-running-${String(index + 1).padStart(4, '0')}`,
+  label: String(index + 1).padStart(6, '0'),
+  status: 'running',
+  turnActive: true,
+}));
+const multiRunning = { ...metrics, active: multiSessions, sessions: multiSessions };
+const multiContent = liveActivity(multiRunning).trailingContent;
+assert.equal(multiContent.type, 'animation', '10+ running turns keep the animated digit treatment');
+assert.deepEqual(multiContent.size, { width: 26, height: 26 }, 'multi-digit counts use the wider padded box without exceeding 26pt');
+assert.ok(multiContent.size.width <= 26 && multiContent.size.height <= 26, 'multi-digit animation stays within the 26pt box');
+const multiLottie = JSON.parse(Buffer.from(multiContent.data, 'base64').toString('utf8'));
+assert.deepEqual({ width: multiLottie.w, height: multiLottie.h }, { width: 220, height: 220 }, 'multi-digit composition preserves readable per-digit scale');
+assert.equal(multiLottie.layers.filter((layer) => layer.ty === 2).length, 2, '12 running turns compose two existing digit assets');
+assert.equal(multiLottie.assets.length, 2, 'multi-digit lottie embeds one png asset per digit');
+assert.ok(multiLottie.layers.filter((layer) => layer.ty === 2).every((layer) => layer.ks.s.k[0] === 80), 'two digits shrink to fit the same square instead of widening it');
+assert.deepEqual(multiLottie.layers.filter((layer) => layer.ty === 2).map((layer) => layer.refId), ['digit-0', 'digit-1']);
+assert.deepEqual(multiLottie.layers.filter((layer) => layer.ty === 2).map((layer) => layer.ks.p.k), [[78, 87.6, 0], [142, 87.6, 0]], 'multi-digit assets stay centered as a group');
+assert.ok(multiLottie.assets.every((asset) => asset.p.startsWith('data:image/png;base64,')), 'every composed digit uses an embedded png asset');
+assert.equal(multiLottie.layers.filter((layer) => layer.ty === 2).every((layer) => layer.ks.o.a === 0 && layer.ks.s.a === 0), true, 'all composed digits stay static');
+const multiBorderGroup = multiLottie.layers.find((layer) => layer.nm === 'orbiting_border').shapes[0];
+const multiBorderRect = multiBorderGroup.it.find((shape) => shape.ty === 'rc');
+const multiBorderStroke = multiBorderGroup.it.find((shape) => shape.ty === 'st');
+assert.deepEqual(multiBorderRect.s.k, [196, 196], 'multi-digit border retains its padded rectangular perimeter');
+assert.equal((multiLottie.w - multiBorderRect.s.k[0]) / 2 - multiBorderStroke.w.k / 2, 8, 'multi-digit border keeps geometric outer padding');
 assert.equal(activity.allowsMusicCoexistence, true);
 assert.equal(activity.priority, 'high');
 assert.match(activity.subtitle, /1 running/);
@@ -97,23 +185,79 @@ assert.equal(surfacePlan(needsActionMetrics, true).keepActivity, false, 'the exp
 const needsActionHTML = unpackDashboard(tab(needsActionMetrics).tab.webContent.html);
 assert.ok(needsActionHTML.includes("s[1]==='a'?'needs-action'"));
 assert.ok(needsActionHTML.includes("time.textContent=s.status==='needs-action'?'Needs action'"));
-const finishActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, finishedNow: [{ kind: 'turn', label: '42a' }] });
-assert.equal(finishActivity.sneakPeekTitle, 'Hermes');
+const finishActivity = liveActivity({
+  ...metrics,
+  state: 'done',
+  active: [],
+  sessions: [],
+  pulse: true,
+  finishedNow: [{ kind: 'turn', id: '42a', title: 'Implement previews' }],
+});
+assert.equal(finishActivity.sneakPeekTitle, 'Implement previews');
 assert.equal(finishActivity.sneakPeekSubtitle, 'Complete');
-const sessionFinishActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, finishedNow: [{ kind: 'session', label: '42a' }] });
-assert.equal(sessionFinishActivity.sneakPeekSubtitle, 'Session ended');
-assert.match(finishActivity.sneakPeekTitle, /^Hermes$/);
+assert.equal(finishActivity.sneakPeekConfig.duration, PREVIEW_DURATION_S, 'completion previews last 2.5 seconds');
+assert.equal(finishActivity.sneakPeekConfig.style, 'inline', 'completion previews use the compact Spotify-like style');
+const sessionFinishActivity = liveActivity({
+  ...metrics,
+  state: 'done',
+  active: [],
+  sessions: [],
+  pulse: true,
+  finishedNow: [{ kind: 'session', id: '42a', title: 'Closed session' }],
+});
+assert.equal(sessionFinishActivity.sneakPeekTitle, 'Closed session');
+assert.equal(sessionFinishActivity.sneakPeekSubtitle, 'Complete');
+assert.match(finishActivity.sneakPeekTitle, /^Implement previews$/);
 assert.equal(finishActivity.sneakPeekConfig.enabled, true, 'a finished turn must render its completion text on the closed notch');
 assert.equal(finishActivity.sneakPeekConfig.showOnUpdate, true, 'a finish may arrive as an in-place update, so it must be allowed to animate');
+const startActivity = liveActivity({
+  ...metrics,
+  state: 'running',
+  pulse: false,
+  startedNow: [{ id: '42a', title: 'Implement previews', request: 'Fix the \u0000 parser\nplease' }],
+  preview: { kind: 'start', title: 'Implement previews', subtitle: 'Fix the parser please' },
+});
+assert.equal(startActivity.sneakPeekTitle, 'Implement previews');
+assert.equal(startActivity.sneakPeekSubtitle, 'Fix the parser please');
+assert.equal(startActivity.sneakPeekConfig.enabled, true, 'a real new turn previews its current request');
+assert.equal(startActivity.sneakPeekConfig.showOnUpdate, true, 'a start preview re-presents the stable activity id');
+assert.equal(startActivity.sneakPeekConfig.duration, PREVIEW_DURATION_S);
 const runningActivity = liveActivity(metrics);
+assert.equal(runningActivity.sneakPeekTitle, null, 'ordinary refreshes have no preview title');
+assert.equal(runningActivity.sneakPeekSubtitle, null, 'ordinary refreshes have no preview subtitle');
 assert.equal(runningActivity.sneakPeekConfig.enabled, false, 'ordinary count changes never animate');
 assert.equal(runningActivity.sneakPeekConfig.showOnUpdate, false, 'ordinary count changes never animate');
-const suppressedPeek = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: true, suppressPeek: true, finishedNow: [{ kind: 'turn', label: '42a' }] });
-assert.equal(suppressedPeek.sneakPeekConfig.enabled, false, 'a burst suppresses the second peek');
+const suppressedPeek = liveActivity({
+  ...metrics,
+  state: 'done',
+  active: [],
+  sessions: [],
+  pulse: true,
+  suppressPeek: true,
+  finishedNow: [{ kind: 'turn', id: '42a', title: 'Implement previews' }],
+});
+assert.equal(suppressedPeek.sneakPeekConfig.enabled, false, 'a finish burst suppresses the second peek');
+assert.equal(suppressedPeek.sneakPeekTitle, 'Implement previews', 'suppression does not replace the actual completion title');
 assert.equal(suppressedPeek.sneakPeekSubtitle, 'Complete', 'the completion text stays available for the hover state');
 assert.equal(finishActivity.accentColor.red, 0x7e / 255, 'finish tone is muted, not neon');
-const pulseTailActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: false, pulseActive: true, lastFinishText: '2 complete' });
-assert.equal(pulseTailActivity.subtitle, '2 complete', 'the pulse grace window keeps the completion text instead of "0 running"');
+assert.equal(completionPreviewTitle([
+  { title: 'First finished' },
+  { title: 'Second finished' },
+  { title: 'Third finished' },
+]), 'First finished + 2 more', 'multiple completions keep the first title and compactly count the rest');
+const deletedFinishActivity = liveActivity({
+  ...metrics,
+  state: 'done',
+  active: [],
+  sessions: [],
+  pulse: true,
+  finishedNow: [],
+  lastFinishTitle: 'Snapshot title',
+});
+assert.equal(deletedFinishActivity.sneakPeekTitle, 'Snapshot title', 'a deleted session uses its last observed title');
+assert.equal(deletedFinishActivity.sneakPeekSubtitle, 'Complete');
+const pulseTailActivity = liveActivity({ ...metrics, state: 'done', active: [], sessions: [], pulse: false, pulseActive: true, lastFinishText: 'Complete' });
+assert.equal(pulseTailActivity.subtitle, 'Complete', 'the pulse grace window keeps the completion text instead of "0 running"');
 assert.equal(pulseTailActivity.trailingContent.type, 'text', 'zero running turns render a digit, not a hidden slot');
 assert.equal(pulseTailActivity.trailingContent.text, '0', 'the count visibly lands on zero before the wing retracts');
 
@@ -167,6 +311,9 @@ assert.ok(!html.includes('time.dataset.ageTs=String(at)'), 'completed actions ar
 assert.ok(html.includes('if(s.turnActive&&s.turnStartedAt)'), 'only a real in-flight turn receives a ticking duration');
 assert.ok(html.includes('sessionArcMarkup(s.turnActive)'), 'the live turn alone receives Hermes Desktop’s animated row border');
 assert.match(html, /@keyframes arc-border/);
+assert.match(html, /background:conic-gradient\(from var\(--arc-angle\),transparent 0deg,transparent 282deg,color-mix\(in srgb,var\(--accent\) 32%,transparent\) 314deg,var\(--accent\) 338deg,transparent 360deg\)/, 'the source arc keeps the exact tapered CSS stops');
+assert.match(html, /\.session-row\[data-status="running"\] \.arc-row\{animation:arc-border 3\.2s linear infinite\}/, 'the source arc keeps the 3.2s linear period');
+assert.match(html, /@keyframes arc-border\{to\{--arc-angle:495deg\}\}/, 'the source arc rotates forward through 360 degrees');
 assert.match(html, /--idle-dot:color-mix\(in srgb,var\(--text\) 36%,transparent\)/, 'idle status matches Hermes Desktop’s quaternary text tone');
 assert.match(html, /n\(s\.apiCallCount\)\+' API/, 'details include API call volume as well as tool and message counts');
 assert.equal(monitor._render.toolActionLabel('search_files'), 'Searched files');
@@ -276,7 +423,7 @@ const safeHTML = unpackDashboard(tab({ ...metrics, sessions: [unsafe], active: [
 assert.ok(!safeHTML.includes('</script><img src=x'));
 assert.ok(safeHTML.includes(String.fromCharCode(92) + 'u003c/script' + String.fromCharCode(92) + 'u003e'));
 
-console.log('PASS: running count pulses as a digit on the right; idle drops it but keeps the session tab');
+console.log('PASS: running count uses a static digit with a 3.2s orbiting border; idle drops it but keeps the session tab');
 console.log('PASS: tab stays high-priority and interactive in running, idle, and empty states');
 console.log('PASS: concise session list, compact layout, single stats line, and local-only requests are embedded');
 console.log('PASS: visible counter/time changes refresh the dashboard; selection, roster, and state updates are wired');

@@ -1,0 +1,11 @@
+{
+  "source": "synthetic-debug-panel",
+  "experienceId": "hermes.monitor.tab.v17",
+  "screenshot": "hermes-expanded-demo.png",
+  "capturedWith": "CuaDriver get_desktop_state after rendering monitor._render.tab",
+  "dummySessions": 4,
+  "statesInFixture": ["running", "needs-action", "open", "ended"],
+  "visibleStates": ["running", "needs-action", "open"],
+  "endedStateEvidence": "notch-complete.png",
+  "reproduce": "node tools/capture-expanded-demo.js --socket <current-cua-driver-socket>"
+}
