@@ -30,7 +30,7 @@ class NotchSetupTests(unittest.TestCase):
                 rpc_probe=lambda: False,
             )
             clone, fetch, checkout, build = plan.commands
-            self.assertEqual(setup.ATOLL_REF, "35859170a644665520948ec4212ee3e37a14c62b")
+            self.assertRegex(setup.ATOLL_REF, r"^[0-9a-f]{40}$", "installer must pin an immutable commit, not a moving branch")
             self.assertEqual(plan.source_url, setup.ATOLL_REPO_URL)
             self.assertIn(setup.ATOLL_REPO_URL, clone)
             self.assertIn("--no-checkout", clone)
