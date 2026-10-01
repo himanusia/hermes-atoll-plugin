@@ -159,6 +159,107 @@ class NotchSetupTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             setup.probe_loopback_rpc(host="192.0.2.10")
 
+    def test_untrusted_local_identity_is_accepted_for_signing(self):
+        seen = []
+
+        def runner(command, **kwargs):
+            seen.append(tuple(str(part) for part in command))
+            stdout = (
+                "Policy: Code Signing\n  Matching identities\n"
+                f"  1) 46A744DDC047FF480787337F32BC505BADAC196D \"{setup.SIGNING_IDENTITY}\""
+                " (CSSMERR_TP_NOT_TRUSTED)\n     1 identities found\n\n"
+                "  Valid identities only\n     0 valid identities found\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout, "")
+
+        identities = setup.list_codesigning_identities(runner=runner)
+        self.assertEqual(identities, (setup.SIGNING_IDENTITY,))
+        self.assertEqual(seen, [("security", "find-identity", "-p", "codesigning")])
+        self.assertEqual(setup.resolve_signing_identity(identities=identities), setup.SIGNING_IDENTITY)
+        sign, verify = setup.signing_commands(Path("/tmp/Atoll.app"), setup.SIGNING_IDENTITY)
+        self.assertIn("--deep", sign)
+        self.assertEqual(sign[sign.index("--sign") + 1], setup.SIGNING_IDENTITY)
+        self.assertEqual(verify, ("codesign", "--verify", "--deep", "--strict", "/tmp/Atoll.app"))
+
+    def test_explicit_identity_must_exist_and_ad_hoc_is_the_fallback(self):
+        with self.assertRaisesRegex(setup.SetupError, "not in this login keychain"):
+            setup.resolve_signing_identity("Nonexistent Identity", identities=())
+        self.assertIsNone(setup.resolve_signing_identity(identities=()))
+        sign, _ = setup.signing_commands(Path("/tmp/Atoll.app"), None)
+        self.assertEqual(sign[sign.index("--sign") + 1], "-")
+
+    def test_signature_verification_failure_aborts_before_installing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate = root / "DerivedData" / "Build" / "Products" / "Release" / "Atoll.app"
+            candidate.mkdir(parents=True)
+            plan = setup.build_setup_plan(
+                home=root,
+                hermes_home_path=root / ".hermes",
+                app_paths=[],
+                rpc_probe=lambda: False,
+                identities=(),
+            )
+            self.assertIsNone(plan.signing_identity)
+            calls = []
+
+            def runner(command, **kwargs):
+                calls.append(tuple(str(part) for part in command))
+                verifying = any("--verify" in str(part) for part in command)
+                return subprocess.CompletedProcess(command, 1 if verifying else 0, "", "invalid signature")
+
+            with self.assertRaisesRegex(setup.SetupError, "signature verification failed"):
+                setup.sign_candidate(candidate, None, runner=runner)
+            self.assertEqual(len(calls), 2)
+            self.assertIn("--force", calls[0])
+            self.assertFalse(plan.install_path.exists())
+
+    def test_setup_builds_signs_verifies_then_installs_without_privileged_tools(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "cache" / "hermes-notch-plugin" / "Atoll-src"
+            (source / ".git").mkdir(parents=True)
+            plan = setup.build_setup_plan(
+                home=root,
+                hermes_home_path=root / ".hermes",
+                app_paths=[],
+                rpc_probe=lambda: False,
+                source_dir=source,
+                derived_data_dir=root / "DerivedData",
+                install_path=root / "Applications" / "Atoll.app",
+                identities=(setup.SIGNING_IDENTITY,),
+            )
+            self.assertEqual(plan.signing_identity, setup.SIGNING_IDENTITY)
+            (plan.candidate_path / "Contents").mkdir(parents=True)
+            calls = []
+
+            def runner(command, **kwargs):
+                calls.append(tuple(str(part) for part in command))
+                if "remote" in command:
+                    return subprocess.CompletedProcess(command, 0, setup.ATOLL_REPO_URL + "\n", "")
+                if "rev-parse" in command:
+                    return subprocess.CompletedProcess(command, 0, setup.ATOLL_REF + "\n", "")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                result = setup.execute_setup(
+                    plan,
+                    runner=runner,
+                    command_exists=lambda name: f"/usr/bin/{name}",
+                    system_name="Darwin",
+                )
+
+            self.assertEqual(result, 0)
+            self.assertTrue((plan.install_path / "Contents").is_dir())
+            emitted = " ".join(" ".join(command) for command in calls)
+            for forbidden in ("sudo", "xattr", "tccutil", "add-trusted-cert", "csrutil"):
+                self.assertNotIn(forbidden, emitted)
+            self.assertIn("codesign --force --deep --sign", emitted)
+            self.assertIn("codesign --verify --deep --strict", emitted)
+            self.assertIn("xcodebuild", emitted)
+            self.assertIn(setup.SIGNING_IDENTITY, output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

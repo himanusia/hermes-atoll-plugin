@@ -89,9 +89,49 @@ hermes notch setup
 hermes notch status
 ```
 
-`hermes notch setup` uses `https://github.com/himanusia/Atoll.git` at immutable commit `3ad728b8c318a51a6098949241d2ca4b6b99e637`. It builds `DynamicIsland.xcodeproj` / `DynamicIsland` with Xcode unsigned and installs only to a new `~/Applications/Atoll.app`. If an Atoll app already exists, setup detects it and never overwrites, signs, relaunches, clicks permissions, resets permissions, changes xattrs, or uses sudo. Preview the plan first with `hermes notch setup --dry-run`.
+`hermes notch setup` uses `https://github.com/himanusia/Atoll.git` at immutable commit `3ad728b8c318a51a6098949241d2ca4b6b99e637`. It builds `DynamicIsland.xcodeproj` / `DynamicIsland` with Xcode unsigned, signs the built app, and installs only to a new `~/Applications/Atoll.app`. If an Atoll app already exists, setup detects it and never overwrites, relaunches, clicks permissions, resets permissions, changes xattrs, or uses sudo. Preview the plan first with `hermes notch setup --dry-run`.
 
 After starting/configuring Atoll yourself and enabling its local extension API, run `hermes notch status` again. The monitor starts on the next Hermes session; start it immediately with `hermes notch start`. When Atoll asks for authorization, allow the extension bundle `dev.hima.notch-plugins`.
+
+## Avoid re-approving macOS permissions
+
+macOS records Accessibility, Screen Recording, and folder grants against the app's designated requirement. An ad-hoc signature gets a `cdhash` requirement that changes on every build, so each update looks like a new app and macOS asks again. A stable local identity makes the requirement certificate-based instead:
+
+```sh
+# ad-hoc
+designated => cdhash H"30487fa1a16135d08abbfb99ca48823c2cf5ef99"
+
+# signed with one local identity
+designated => identifier "com.Ebullioscopic.Atoll" and certificate root = H"46a744ddc047ff480787337f32bc505badac196d"
+```
+
+Create the identity once (it is self-signed, so it does not need to be trusted, and no system trust setting is touched):
+
+```sh
+mkdir -p ~/.hermes/cache/atoll-signing && cd ~/.hermes/cache/atoll-signing
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 3650 \
+  -keyout key.pem -out cert.pem -subj "/CN=Hermes Notch Local Signing/O=Himanusia Local Development" \
+  -addext "basicConstraints=critical,CA:FALSE" -addext "keyUsage=critical,digitalSignature" \
+  -addext "extendedKeyUsage=critical,codeSigning"
+openssl pkcs12 -export -inkey key.pem -in cert.pem -name "Hermes Notch Local Signing" \
+  -out identity.p12 -passout pass:temporary
+security import identity.p12 -k ~/Library/Keychains/login.keychain-db -P temporary -T /usr/bin/codesign
+rm -f key.pem identity.p12
+```
+
+`security find-identity -p codesigning -v` reports this identity as `CSSMERR_TP_NOT_TRUSTED` and counts zero valid identities. That is expected and harmless: `codesign` still signs with it and `codesign --verify --deep --strict` still passes.
+
+Then run setup without extra flags. It prefers `Hermes Notch Local Signing`, falls back to any other identity in the keychain, and only signs ad-hoc when none exists:
+
+```sh
+hermes notch setup --dry-run          # shows the exact codesign command and the resolved identity
+hermes notch setup
+hermes notch setup --sign-identity "My Other Identity"
+```
+
+Switching an installed ad-hoc app to a certificate costs **one** re-approval of the permissions macOS already asked for. Rebuilding with the same identity afterwards keeps them.
+
+Not notarized: distribution to other machines still needs an Apple Developer ID certificate and notarization. A Developer ID is a different identity from this local one; using it is enough for setup to prefer it automatically, since it is a valid keychain identity.
 
 ## Manage the monitor
 
