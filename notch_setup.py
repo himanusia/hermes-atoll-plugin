@@ -30,6 +30,12 @@ ATOLL_SCHEME = "DynamicIsland"
 ATOLL_APP_NAME = "Atoll.app"
 ATOLL_RPC_HOST = "127.0.0.1"
 ATOLL_RPC_PORT = 9020
+# A stable local code-signing identity keeps the built app's designated
+# requirement certificate-based instead of cdhash-based, which is what makes
+# macOS re-ask for permissions after every rebuild. A self-signed identity
+# works here without being trusted by the system.
+SIGNING_IDENTITY = "Hermes Notch Local Signing"
+SIGNING_VERIFY_COMMAND = ("codesign", "--verify", "--deep", "--strict")
 
 
 class SetupError(RuntimeError):
@@ -65,6 +71,8 @@ class SetupPlan:
     existing_app: Optional[InstalledAtoll]
     rpc_reachable: bool
     commands: Tuple[Tuple[str, ...], ...]
+    signing_identity: Optional[str]
+    signing_commands: Tuple[Tuple[str, ...], ...]
 
     @property
     def can_install(self) -> bool:
@@ -256,6 +264,8 @@ def build_setup_plan(
     derived_data_dir: Optional[Path] = None,
     install_path: Optional[Path] = None,
     rpc_probe: Callable[[], bool] = probe_loopback_rpc,
+    signing_identity: Optional[str] = None,
+    identities: Optional[Iterable[str]] = None,
 ) -> SetupPlan:
     """Create a source-build plan without cloning, building, or installing."""
 
@@ -269,6 +279,7 @@ def build_setup_plan(
     existing = discover_atoll_app(app_paths=app_paths, home=user_home)
     rpc = bool(rpc_probe())
     commands = source_build_commands(source, derived, ref)
+    resolved_identity = resolve_signing_identity(signing_identity, identities=identities)
     candidate = derived / "Build" / "Products" / "Release" / ATOLL_APP_NAME
     return SetupPlan(
         ref=ref,
@@ -280,6 +291,8 @@ def build_setup_plan(
         existing_app=existing,
         rpc_reachable=rpc,
         commands=commands,
+        signing_identity=resolved_identity,
+        signing_commands=signing_commands(candidate, resolved_identity),
     )
 
 
@@ -288,9 +301,14 @@ def format_setup_plan(plan: SetupPlan) -> str:
         f"{PRODUCT_NAME} setup (dry run)",
         f"Atoll source: {plan.source_url}",
         f"Atoll ref: {plan.ref}",
-        f"Build: unsigned source build via Xcode scheme {ATOLL_SCHEME}",
+        f"Build: source build via Xcode scheme {ATOLL_SCHEME}",
         f"Candidate: {plan.candidate_path}",
         f"Install target: {plan.install_path}",
+        "Signing: "
+        + (
+            plan.signing_identity
+            or "ad-hoc (the designated requirement changes every rebuild, so macOS may ask for permissions again)"
+        ),
     ]
     if plan.existing_app:
         lines.append(
@@ -302,7 +320,7 @@ def format_setup_plan(plan: SetupPlan) -> str:
     lines.append(f"Loopback RPC 127.0.0.1:{ATOLL_RPC_PORT}: {'reachable' if plan.rpc_reachable else 'not reachable'}")
     lines.append("No release asset is assumed; no permissions, xattrs, sudo, launch, or restart are performed.")
     if plan.existing_app is None:
-        lines.extend("Command: " + " ".join(command) for command in plan.commands)
+        lines.extend("Command: " + " ".join(command) for command in (*plan.commands, *plan.signing_commands))
     else:
         lines.append("Action: keep the installed app; launch/configure Atoll separately if RPC is not reachable.")
     return "\n".join(lines)
@@ -334,6 +352,84 @@ def _check_result(result, command: Sequence[str], label: str) -> None:
     detail = (getattr(result, "stderr", "") or getattr(result, "stdout", "") or "").strip()
     suffix = f": {detail[-800:]}" if detail else ""
     raise SetupError(f"Atoll {label} failed{suffix}")
+
+
+def list_codesigning_identities(*, runner: Callable = subprocess.run) -> Tuple[str, ...]:
+    """Local code-signing identity names, including untrusted self-signed ones.
+
+    A self-signed local identity is reported as ``CSSMERR_TP_NOT_TRUSTED`` and
+    is therefore absent from ``security find-identity -v``, but codesign still
+    signs with it and ``codesign --verify`` still passes. Filtering it out
+    would drop the only identity this setup can use, so untrusted entries whose
+    name matches are kept.
+    """
+
+    try:
+        result = _run(_command("security", "find-identity", "-p", "codesigning"), runner=runner)
+    except SetupError:
+        return ()
+    if getattr(result, "returncode", 1) != 0:
+        return ()
+    names: List[str] = []
+    for match in re.finditer(r'"([^"]+)"', getattr(result, "stdout", "") or ""):
+        name = match.group(1)
+        if name not in names:
+            names.append(name)
+    return tuple(names)
+
+
+def resolve_signing_identity(
+    explicit: Optional[str] = None,
+    *,
+    identities: Optional[Iterable[str]] = None,
+    runner: Callable = subprocess.run,
+) -> Optional[str]:
+    """Pick an identity: explicit request, then the local identity, then any, else ad-hoc."""
+
+    if identities is None:
+        known = list_codesigning_identities(runner=runner)
+    else:
+        known = tuple(str(name) for name in identities)
+    if explicit:
+        if explicit not in known:
+            raise SetupError(
+                f"Requested signing identity {explicit!r} is not in this login keychain. "
+                "Create it first, or omit --sign-identity to sign ad-hoc."
+            )
+        return explicit
+    if SIGNING_IDENTITY in known:
+        return SIGNING_IDENTITY
+    return known[0] if known else None
+
+
+def signing_commands(
+    candidate_path: Path,
+    identity: Optional[str],
+) -> Tuple[Tuple[str, ...], ...]:
+    """Exact codesign commands; an identity of None means an ad-hoc signature."""
+
+    candidate = Path(candidate_path).expanduser()
+    return (
+        _command("codesign", "--force", "--deep", "--sign", identity or "-", "--timestamp=none", candidate),
+        _command(*SIGNING_VERIFY_COMMAND, candidate),
+    )
+
+
+def sign_candidate(
+    candidate_path: Path,
+    identity: Optional[str],
+    *,
+    runner: Callable = subprocess.run,
+) -> None:
+    """Sign the built app, and require the signature to verify before installing."""
+
+    candidate = Path(candidate_path).expanduser()
+    if not candidate.is_dir():
+        raise SetupError(f"Atoll build did not produce {candidate}")
+    sign, verify = signing_commands(candidate, identity)
+    label = identity or "an ad-hoc identity"
+    _check_result(_run(sign, runner=runner), sign, f"signing with {label}")
+    _check_result(_run(verify, runner=runner), verify, "signature verification")
 
 
 def _verify_source_tree(source_dir: Path, *, runner: Callable = subprocess.run) -> None:
@@ -369,7 +465,7 @@ def install_candidate(candidate_path: Path, install_path: Path) -> Path:
     candidate = Path(candidate_path).expanduser()
     target = Path(install_path).expanduser()
     if not candidate.is_dir():
-        raise SetupError(f"Unsigned Atoll build did not produce {candidate}")
+        raise SetupError(f"Atoll build did not produce {candidate}")
     if target.exists():
         raise SetupError(
             f"Refusing to replace existing app at {target}. "
@@ -415,6 +511,7 @@ def execute_setup(
         raise SetupError("The Atoll source build requires macOS.")
     _require_command("git", command_exists)
     _require_command("xcodebuild", command_exists)
+    _require_command("codesign", command_exists)
 
     source_exists = plan.source_dir.exists()
     if source_exists:
@@ -429,9 +526,16 @@ def execute_setup(
     _verify_source_ref(plan.source_dir, plan.ref, runner=runner)
 
     build = _run(plan.commands[-1], cwd=plan.source_dir, runner=runner)
-    _check_result(build, plan.commands[-1], "unsigned build")
+    _check_result(build, plan.commands[-1], "build")
+    sign_candidate(plan.candidate_path, plan.signing_identity, runner=runner)
     install_candidate(plan.candidate_path, plan.install_path)
-    print(f"Installed unsigned {ATOLL_APP_NAME} from {plan.source_url} at ref {plan.ref} to {plan.install_path}.")
+    signature = plan.signing_identity or "an ad-hoc identity"
+    print(f"Installed {ATOLL_APP_NAME} signed with {signature} from {plan.source_url} at ref {plan.ref} to {plan.install_path}.")
+    if plan.signing_identity is None:
+        print(
+            "An ad-hoc designated requirement changes on every rebuild, so macOS can ask for permissions again. "
+            "See the README section 'Avoid re-approving macOS permissions' to sign with a stable local identity."
+        )
     print("Not notarized; no launch or restart was performed. Start Atoll yourself, then run `hermes notch status`.")
     return 0
 
@@ -455,6 +559,10 @@ def add_setup_arguments(parser) -> None:
     parser.add_argument("--source-dir", type=Path, help="Existing/new fork checkout directory")
     parser.add_argument("--derived-data-dir", type=Path, help="Xcode DerivedData directory")
     parser.add_argument("--install-path", type=Path, help="New user-owned Atoll.app destination")
+    parser.add_argument(
+        "--sign-identity",
+        help=f"Local code-signing identity for the built app (default: {SIGNING_IDENTITY}, else ad-hoc)",
+    )
 
 
 __all__ = [
@@ -462,6 +570,7 @@ __all__ = [
     "ATOLL_REPO_URL",
     "PRODUCT_NAME",
     "RuntimeStatus",
+    "SIGNING_IDENTITY",
     "SetupError",
     "SetupPlan",
     "add_setup_arguments",
@@ -473,7 +582,11 @@ __all__ = [
     "hermes_home",
     "inspect_runtime",
     "install_candidate",
+    "list_codesigning_identities",
     "print_runtime_status",
     "probe_loopback_rpc",
+    "resolve_signing_identity",
+    "sign_candidate",
+    "signing_commands",
     "source_build_commands",
 ]

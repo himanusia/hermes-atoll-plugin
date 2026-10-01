@@ -222,6 +222,7 @@ def _dispatch_cli(args: argparse.Namespace) -> int:
                 source_dir=args.source_dir,
                 derived_data_dir=args.derived_data_dir,
                 install_path=args.install_path,
+                signing_identity=getattr(args, "sign_identity", None),
             )
             return execute_setup(plan, dry_run=bool(args.dry_run))
         except SetupError as exc:
