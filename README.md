@@ -89,7 +89,7 @@ hermes notch setup
 hermes notch status
 ```
 
-`hermes notch setup` uses `https://github.com/himanusia/Atoll.git` at immutable commit `f1b4bb167bdb727caa2f9a10882c621862c5e2d4`. It builds `DynamicIsland.xcodeproj` / `DynamicIsland` with Xcode unsigned, signs the built app, and installs only to a new `~/Applications/Atoll.app`. If an Atoll app already exists, setup detects it and never overwrites, relaunches, clicks permissions, resets permissions, changes xattrs, or uses sudo. Preview the plan first with `hermes notch setup --dry-run`.
+`hermes notch setup` uses `https://github.com/himanusia/Atoll.git` at immutable commit `9fa29e56e0167cc4e0790d644f0a86e10c1fe4f0`. It builds `DynamicIsland.xcodeproj` / `DynamicIsland` with Xcode unsigned, signs the built app, and installs only to a new `~/Applications/Atoll.app`. If an Atoll app already exists, setup detects it and never overwrites, relaunches, clicks permissions, resets permissions, changes xattrs, or uses sudo. Preview the plan first with `hermes notch setup --dry-run`.
 
 After starting/configuring Atoll yourself and enabling its local extension API, run `hermes notch status` again. The monitor starts on the next Hermes session; start it immediately with `hermes notch start`. When Atoll asks for authorization, allow the extension bundle `dev.hima.notch-plugins`.
 
