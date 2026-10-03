@@ -24,7 +24,7 @@ PRODUCT_NAME = "Hermes Notch Plugin"
 ATOLL_REPO_URL = "https://github.com/himanusia/Atoll.git"
 ATOLL_REPO_CANONICAL = "github.com/himanusia/atoll"
 # Immutable fork commit carrying the extension peek/open-panel work.
-ATOLL_REF = "9fa29e56e0167cc4e0790d644f0a86e10c1fe4f0"
+ATOLL_REF = "51ec9790577590170bbcdac7887b08adca02e711"
 ATOLL_PROJECT = "DynamicIsland.xcodeproj"
 ATOLL_SCHEME = "DynamicIsland"
 ATOLL_APP_NAME = "Atoll.app"
